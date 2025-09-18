@@ -11,17 +11,17 @@ namespace ModernApproach
     // ============================================
     // STRONG TYPES - Prevent primitive obsession with validation
     // ============================================
-    
+
     public readonly record struct UserId(string Value)
     {
         public static implicit operator string(UserId userId) => userId.Value;
         public override string ToString() => Value;
-        
-        public static UserId From(string value) => 
-            string.IsNullOrWhiteSpace(value) 
+
+        public static UserId From(string value) =>
+            string.IsNullOrWhiteSpace(value)
                 ? throw new ArgumentException("UserId cannot be null or empty", nameof(value))
                 : new(value);
-        
+
         public static bool TryParse(string? value, out UserId userId)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -33,23 +33,23 @@ namespace ModernApproach
             return true;
         }
     }
-    
+
     public readonly record struct DepartmentId(string Value) : IEquatable<DepartmentId>
     {
         public static implicit operator string(DepartmentId departmentId) => departmentId.Value;
         public override string ToString() => Value;
-        
-        public static DepartmentId From(string value) => 
-            string.IsNullOrWhiteSpace(value) 
+
+        public static DepartmentId From(string value) =>
+            string.IsNullOrWhiteSpace(value)
                 ? throw new ArgumentException("DepartmentId cannot be null or empty", nameof(value))
                 : new(value.ToUpperInvariant());
-        
+
         public bool Equals(DepartmentId other) =>
             string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
-        
-        public override int GetHashCode() => 
+
+        public override int GetHashCode() =>
             StringComparer.OrdinalIgnoreCase.GetHashCode(Value);
-            
+
         public static bool TryParse(string? value, out DepartmentId departmentId)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -61,26 +61,26 @@ namespace ModernApproach
             return true;
         }
     }
-    
+
     public readonly record struct SupervisorId(string Value)
     {
         public static implicit operator string(SupervisorId supervisorId) => supervisorId.Value;
         public override string ToString() => Value;
-        
-        public static SupervisorId From(string value) => 
-            string.IsNullOrWhiteSpace(value) 
+
+        public static SupervisorId From(string value) =>
+            string.IsNullOrWhiteSpace(value)
                 ? throw new ArgumentException("SupervisorId cannot be null or empty", nameof(value))
                 : new(value);
     }
-    
+
     public readonly record struct RoleId(Guid Value)
     {
         public static RoleId New() => new(Guid.NewGuid());
         public static implicit operator Guid(RoleId roleId) => roleId.Value;
         public override string ToString() => Value.ToString();
-        
-        public static RoleId From(Guid value) => 
-            value == Guid.Empty 
+
+        public static RoleId From(Guid value) =>
+            value == Guid.Empty
                 ? throw new ArgumentException("RoleId cannot be empty", nameof(value))
                 : new(value);
     }
@@ -88,13 +88,13 @@ namespace ModernApproach
     // ============================================
     // ENUMS - Document business meaning with metadata
     // ============================================
-    
+
     public enum StandardRoleType
     {
         [Description("Department Manager - oversees department operations")]
         [RoleMetadata(Priority = 1, RequiresApproval = true)]
         DepartmentManager = 6,
-        
+
         [Description("Project Coordinator - manages project workflows")]
         [RoleMetadata(Priority = 2, RequiresApproval = false)]
         ProjectCoordinator = 7
@@ -104,10 +104,10 @@ namespace ModernApproach
     {
         [Description("Project Manager")]
         ProjectManager = 101,
-        
+
         [Description("General Administrator")]
         GeneralAdministrator = 203,
-        
+
         [Description("Special Administrator")]
         SpecialAdministrator = 202
     }
@@ -121,7 +121,7 @@ namespace ModernApproach
     // ============================================
     // METADATA ATTRIBUTES
     // ============================================
-    
+
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class RoleMetadataAttribute : Attribute
     {
@@ -132,64 +132,65 @@ namespace ModernApproach
     // ============================================
     // RESULT TYPES - Railway-oriented programming
     // ============================================
-    
+
     public abstract record Result<TSuccess, TFailure>
     {
         private Result() { }
-        
+
         public sealed record Success(TSuccess Value) : Result<TSuccess, TFailure>;
         public sealed record Failure(TFailure Error) : Result<TSuccess, TFailure>;
-        
+
         public bool IsSuccess => this is Success;
         public bool IsFailure => this is Failure;
-        
+
         public TResult Match<TResult>(
             Func<TSuccess, TResult> success,
             Func<TFailure, TResult> failure) => this switch
-        {
-            Success s => success(s.Value),
-            Failure f => failure(f.Error),
-            _ => throw new InvalidOperationException()
-        };
-        
-        public static implicit operator Result<TSuccess, TFailure>(TSuccess value) => 
+            {
+                Success s => success(s.Value),
+                Failure f => failure(f.Error),
+                _ => throw new InvalidOperationException()
+            };
+
+        public static implicit operator Result<TSuccess, TFailure>(TSuccess value) =>
             new Success(value);
-        public static implicit operator Result<TSuccess, TFailure>(TFailure error) => 
+        public static implicit operator Result<TSuccess, TFailure>(TFailure error) =>
             new Failure(error);
     }
-    
+
     public sealed record RoleAssignmentResult
     {
         public IReadOnlyList<RoleAssignmentSuccess> Successes { get; init; } = [];
         public IReadOnlyList<RoleAssignmentFailure> Failures { get; init; } = [];
-        
+
         public bool IsSuccess => Failures.Count == 0 && Successes.Count > 0;
         public bool IsPartialSuccess => Successes.Count > 0 && Failures.Count > 0;
         public bool IsFailure => Successes.Count == 0 && Failures.Count > 0;
-        
-        public static RoleAssignmentResult Success(params RoleAssignmentSuccess[] successes) => 
+
+        public static RoleAssignmentResult Success(params RoleAssignmentSuccess[] successes) =>
             new() { Successes = successes };
-        
-        public static RoleAssignmentResult WithFailures(params RoleAssignmentFailure[] failures) => 
+
+        public static RoleAssignmentResult WithFailures(params RoleAssignmentFailure[] failures) =>
             new() { Failures = failures };
-        
+
         public static RoleAssignmentResult Mixed(
-            IEnumerable<RoleAssignmentSuccess> successes, 
-            IEnumerable<RoleAssignmentFailure> failures) => 
-            new() { 
+            IEnumerable<RoleAssignmentSuccess> successes,
+            IEnumerable<RoleAssignmentFailure> failures) =>
+            new()
+            {
                 Successes = successes.ToArray(),
                 Failures = failures.ToArray()
             };
     }
 
     public sealed record RoleAssignmentSuccess(
-        RoleId RoleId, 
-        StandardRoleType RoleType, 
+        RoleId RoleId,
+        StandardRoleType RoleType,
         string Description,
         TimeSpan Duration);
-        
+
     public sealed record RoleAssignmentFailure(
-        StandardRoleType RoleType, 
+        StandardRoleType RoleType,
         string Error,
         FailureReason Reason);
 
@@ -206,7 +207,7 @@ namespace ModernApproach
     // ============================================
     // DATA STRUCTURES - Immutable domain models
     // ============================================
-    
+
     public sealed record RoleAssignment(
         StandardRoleType RoleType,
         SupervisorId SupervisorId,
@@ -249,14 +250,14 @@ namespace ModernApproach
     // ============================================
     // CONFIGURATION - Externalized settings with validation
     // ============================================
-    
+
     public sealed record RoleAssignmentOptions
     {
         public static readonly RoleAssignmentOptions Default = new();
-        
-        public IReadOnlySet<DepartmentId> SpecialDepartments { get; init; } = 
+
+        public IReadOnlySet<DepartmentId> SpecialDepartments { get; init; } =
             new HashSet<DepartmentId> { DepartmentId.From("SPECIAL-DEPT") };
-        
+
         public bool ValidateExistingRoles { get; init; } = true;
         public bool AllowPartialFailures { get; init; } = true;
         public TimeSpan TransactionTimeout { get; init; } = TimeSpan.FromMinutes(5);
@@ -264,7 +265,7 @@ namespace ModernApproach
         public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(1);
         public bool EnableTelemetry { get; init; } = true;
         public bool RequireApprovalCheck { get; init; } = false;
-        
+
         public RoleAssignmentOptions Validate()
         {
             if (TransactionTimeout <= TimeSpan.Zero)
@@ -280,7 +281,7 @@ namespace ModernApproach
     // ============================================
     // INTERFACES - Dependency abstractions
     // ============================================
-    
+
     public interface IUserRoleRepository
     {
         Task CreateUserRoleAsync(CreateUserRoleCommand command, CancellationToken cancellationToken = default);
@@ -334,17 +335,17 @@ namespace ModernApproach
     // ============================================
     // EXTENSION METHODS - Clean code helpers
     // ============================================
-    
+
     public static class EnumExtensions
     {
         private static readonly Dictionary<Enum, string> DescriptionCache = new();
         private static readonly Dictionary<Enum, RoleMetadataAttribute?> MetadataCache = new();
-        
+
         public static string GetDescription(this Enum value)
         {
             if (DescriptionCache.TryGetValue(value, out var cached))
                 return cached;
-                
+
             var field = value.GetType().GetField(value.ToString());
             var attribute = field?.GetCustomAttributes(typeof(DescriptionAttribute), false)
                                .Cast<DescriptionAttribute>()
@@ -353,12 +354,12 @@ namespace ModernApproach
             DescriptionCache[value] = description;
             return description;
         }
-        
+
         public static RoleMetadataAttribute? GetMetadata(this StandardRoleType value)
         {
             if (MetadataCache.TryGetValue(value, out var cached))
                 return cached;
-                
+
             var field = value.GetType().GetField(value.ToString());
             var metadata = field?.GetCustomAttributes(typeof(RoleMetadataAttribute), false)
                                .Cast<RoleMetadataAttribute>()
@@ -372,10 +373,10 @@ namespace ModernApproach
     {
         private const string ManagerPrefix = "manager-";
         private const string CoordinatorPrefix = "coordinator-";
-        
+
         public static SupervisorId GetDepartmentManager(this DepartmentId departmentId) =>
             SupervisorId.From($"{ManagerPrefix}{departmentId.Value}");
-        
+
         public static SupervisorId GetProjectCoordinator(this DepartmentId departmentId) =>
             SupervisorId.From($"{CoordinatorPrefix}{departmentId.Value}");
     }
@@ -383,12 +384,12 @@ namespace ModernApproach
     // ============================================
     // FACTORIES - Creation patterns
     // ============================================
-    
+
     public sealed class StandardRoleAssignmentFactory : IRoleAssignmentFactory
     {
         private readonly ISupervisorResolver _supervisorResolver;
         private readonly RoleAssignmentOptions _options;
-        
+
         public StandardRoleAssignmentFactory(
             ISupervisorResolver supervisorResolver,
             RoleAssignmentOptions options)
@@ -396,7 +397,7 @@ namespace ModernApproach
             _supervisorResolver = supervisorResolver ?? throw new ArgumentNullException(nameof(supervisorResolver));
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
-        
+
         public IReadOnlyList<RoleAssignment> CreateStandardRoleAssignments(DepartmentId departmentId)
         {
             var assignments = new List<RoleAssignment>
@@ -405,22 +406,22 @@ namespace ModernApproach
                     StandardRoleType.DepartmentManager,
                     _supervisorResolver.GetDepartmentManager(departmentId),
                     WorkAssignmentRoleCode.ProjectManager),
-                
+
                 new RoleAssignment(
                     StandardRoleType.ProjectCoordinator,
                     _supervisorResolver.GetProjectCoordinator(departmentId),
                     GetCoordinatorWorkRole(departmentId))
             };
-            
+
             return assignments.OrderBy(a => a.Priority).ToList();
         }
-        
+
         public IReadOnlyList<RoleAssignment> CreateCustomRoleAssignments(
-            DepartmentId departmentId, 
+            DepartmentId departmentId,
             IEnumerable<StandardRoleType> roleTypes)
         {
             var assignments = new List<RoleAssignment>();
-            
+
             foreach (var roleType in roleTypes)
             {
                 var supervisorId = roleType switch
@@ -429,20 +430,20 @@ namespace ModernApproach
                     StandardRoleType.ProjectCoordinator => _supervisorResolver.GetProjectCoordinator(departmentId),
                     _ => throw new NotSupportedException($"Role type {roleType} is not supported")
                 };
-                
+
                 var workRole = roleType switch
                 {
                     StandardRoleType.DepartmentManager => WorkAssignmentRoleCode.ProjectManager,
                     StandardRoleType.ProjectCoordinator => GetCoordinatorWorkRole(departmentId),
                     _ => WorkAssignmentRoleCode.GeneralAdministrator
                 };
-                
+
                 assignments.Add(new RoleAssignment(roleType, supervisorId, workRole));
             }
-            
+
             return assignments.OrderBy(a => a.Priority).ToList();
         }
-        
+
         private WorkAssignmentRoleCode GetCoordinatorWorkRole(DepartmentId departmentId) =>
             _options.SpecialDepartments.Contains(departmentId)
                 ? WorkAssignmentRoleCode.SpecialAdministrator
@@ -452,7 +453,7 @@ namespace ModernApproach
     // ============================================
     // SERVICE - Main business logic with enhanced patterns
     // ============================================
-    
+
     public sealed class RoleAssignmentService_GoodWay
     {
         private readonly IUserRoleRepository _userRoleRepository;
@@ -485,8 +486,8 @@ namespace ModernApproach
         }
 
         public async Task<RoleAssignmentResult> AssignStandardRolesAsync(
-            UserId userId, 
-            DepartmentId departmentId, 
+            UserId userId,
+            DepartmentId departmentId,
             DateTime assignedDate,
             string? assignedBy = null,
             CancellationToken cancellationToken = default)
@@ -515,7 +516,7 @@ namespace ModernApproach
                             cancellationToken);
                         return true;
                     }, cancellationToken);
-                    
+
                     if (failures.Any() && !_options.AllowPartialFailures)
                     {
                         await _unitOfWork.RollbackAsync(cancellationToken);
@@ -541,7 +542,7 @@ namespace ModernApproach
 
             stopwatch.Stop();
             _logger.LogRoleAssignmentCompleted(userId, successes.Count, failures.Count, stopwatch.Elapsed);
-            
+
             return RoleAssignmentResult.Mixed(successes, failures);
         }
 
@@ -588,10 +589,16 @@ namespace ModernApproach
 
                 var assignmentResult = await ProcessRoleAssignmentWithRetryAsync(
                     userId, departmentId, assignedDate, assignedBy, assignment, cancellationToken);
-                
-                assignmentResult.Match(
-                    success => successes.Add(success),
-                    failure => failures.Add(failure));
+
+                // Fixed: Process the result properly
+                if (assignmentResult is Result<RoleAssignmentSuccess, RoleAssignmentFailure>.Success successResult)
+                {
+                    successes.Add(successResult.Value);
+                }
+                else if (assignmentResult is Result<RoleAssignmentSuccess, RoleAssignmentFailure>.Failure failureResult)
+                {
+                    failures.Add(failureResult.Error);
+                }
 
                 if (failures.Any() && !_options.AllowPartialFailures)
                     break;
@@ -607,7 +614,7 @@ namespace ModernApproach
             CancellationToken cancellationToken)
         {
             var stopwatch = Stopwatch.StartNew();
-            
+
             for (int attempt = 0; attempt <= _options.MaxRetryAttempts; attempt++)
             {
                 if (attempt > 0)
@@ -621,11 +628,11 @@ namespace ModernApproach
                 {
                     var roleId = await ProcessRoleAssignmentAsync(
                         userId, departmentId, assignedDate, assignedBy, assignment, cancellationToken);
-                    
+
                     stopwatch.Stop();
                     var success = new RoleAssignmentSuccess(
                         roleId, assignment.RoleType, assignment.Description, stopwatch.Elapsed);
-                    
+
                     _telemetry?.RecordRoleAssignment(assignment.RoleType, true, stopwatch.Elapsed);
                     return success;
                 }
@@ -640,11 +647,11 @@ namespace ModernApproach
                     var reason = DetermineFailureReason(ex);
                     _logger.LogRoleAssignmentFailed(assignment.RoleType, userId, ex.Message, reason);
                     _telemetry?.RecordRoleAssignment(assignment.RoleType, false, stopwatch.Elapsed);
-                    
+
                     return new RoleAssignmentFailure(assignment.RoleType, ex.Message, reason);
                 }
             }
-            
+
             stopwatch.Stop();
             var timeoutError = $"Failed after {_options.MaxRetryAttempts} retry attempts";
             _logger.LogRoleAssignmentFailed(assignment.RoleType, userId, timeoutError, FailureReason.TransientFailure);
@@ -652,7 +659,7 @@ namespace ModernApproach
         }
 
         private async Task<RoleId> ProcessRoleAssignmentAsync(
-            UserId userId, 
+            UserId userId,
             DepartmentId departmentId,
             DateTime assignedDate,
             string? assignedBy,
@@ -661,42 +668,42 @@ namespace ModernApproach
         {
             var roleStopwatch = Stopwatch.StartNew();
             var roleId = RoleId.New();
-            
+
             _logger.LogRoleAssigning(assignment.RoleType, userId);
-            
+
             // Validate supervisor if needed
             if (!await _supervisorResolver.ValidateSupervisorAsync(assignment.SupervisorId, cancellationToken))
             {
                 throw new InvalidOperationException($"Invalid supervisor: {assignment.SupervisorId}");
             }
-            
+
             var userRoleCommand = new CreateUserRoleCommand(
-                roleId, userId, departmentId, assignedDate, 
+                roleId, userId, departmentId, assignedDate,
                 assignment.RoleType, assignment.SupervisorId, assignedBy)
                 .Validate();
-            
+
             await _userRoleRepository.CreateUserRoleAsync(userRoleCommand, cancellationToken);
-            
+
             var workStopwatch = Stopwatch.StartNew();
             var workCommand = new WorkAssignmentCommand(
-                assignment.SupervisorId, assignment.WorkRole, userId, 
+                assignment.SupervisorId, assignment.WorkRole, userId,
                 ResourceType.UserAccount, assignedDate);
-            
+
             await _workAssignmentRepository.CreateWorkAssignmentAsync(workCommand, cancellationToken);
             workStopwatch.Stop();
-            
+
             _logger.LogRoleAssigned(roleId, assignment.RoleType, userId, roleStopwatch.Elapsed);
             _logger.LogWorkAssignmentCreated(assignment.SupervisorId, assignment.WorkRole);
-            
+
             _telemetry?.RecordWorkAssignment(assignment.WorkRole, workStopwatch.Elapsed);
-            
+
             return roleId;
         }
 
         private static bool IsTransientException(Exception ex) =>
             ex is TaskCanceledException or TimeoutException ||
             (ex.InnerException is TaskCanceledException or TimeoutException);
-        
+
         private static FailureReason DetermineFailureReason(Exception ex) => ex switch
         {
             ArgumentException => FailureReason.ValidationFailed,
@@ -710,7 +717,7 @@ namespace ModernApproach
     // ============================================
     // DEFAULT IMPLEMENTATIONS - For demo/testing
     // ============================================
-    
+
     public sealed class ConsoleRoleAssignmentLogger : IRoleAssignmentLogger
     {
         public void LogRoleAssignmentStarting(UserId userId, DepartmentId departmentId, int roleCount)
@@ -742,7 +749,7 @@ namespace ModernApproach
         {
             Console.WriteLine($"[REPO] Created work assignment - Supervisor: {supervisorId}, Role: {roleCode}");
         }
-        
+
         public void LogRetryAttempt(int attempt, StandardRoleType roleType)
         {
             Console.WriteLine($"[RETRY] Attempt {attempt} for role {roleType}");
@@ -759,7 +766,7 @@ namespace ModernApproach
     public sealed class DemoUserRoleRepository : IUserRoleRepository
     {
         private readonly HashSet<RoleId> _existingRoles = new();
-        
+
         public Task CreateUserRoleAsync(CreateUserRoleCommand command, CancellationToken cancellationToken = default)
         {
             Console.WriteLine($"[REPO] Creating user role - RoleId: {command.RoleId}, UserId: {command.UserId}");
@@ -771,7 +778,7 @@ namespace ModernApproach
         {
             return Task.FromResult<IReadOnlySet<StandardRoleType>>(new HashSet<StandardRoleType>());
         }
-        
+
         public Task<bool> ExistsAsync(RoleId roleId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_existingRoles.Contains(roleId));
@@ -794,7 +801,7 @@ namespace ModernApproach
 
         public SupervisorId GetProjectCoordinator(DepartmentId departmentId) =>
             departmentId.GetProjectCoordinator();
-            
+
         public Task<bool> ValidateSupervisorAsync(SupervisorId supervisorId, CancellationToken cancellationToken = default)
         {
             // In production, this would check if supervisor exists and is active
@@ -806,7 +813,7 @@ namespace ModernApproach
     {
         public Task<T> ExecuteAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken = default) =>
             operation();
-        
+
         public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public void Dispose() { }
@@ -815,14 +822,14 @@ namespace ModernApproach
     // ============================================
     // DEMO FACTORY - Simplified creation with DI container simulation
     // ============================================
-    
+
     public static class DemoRoleAssignmentService
     {
         public static RoleAssignmentService_GoodWay Create(RoleAssignmentOptions? options = null)
         {
             var supervisorResolver = new DefaultSupervisorResolver();
             var finalOptions = options ?? RoleAssignmentOptions.Default;
-            
+
             return new RoleAssignmentService_GoodWay(
                 new DemoUserRoleRepository(),
                 new DemoWorkAssignmentRepository(),
@@ -834,7 +841,7 @@ namespace ModernApproach
                 finalOptions
             );
         }
-        
+
         public static RoleAssignmentService_GoodWay CreateWithCustomOptions()
         {
             var options = new RoleAssignmentOptions
@@ -846,13 +853,13 @@ namespace ModernApproach
                 RetryDelay = TimeSpan.FromMilliseconds(500),
                 EnableTelemetry = true,
                 RequireApprovalCheck = true,
-                SpecialDepartments = new HashSet<DepartmentId> 
-                { 
-                    DepartmentId.From("SPECIAL-DEPT"), 
-                    DepartmentId.From("VIP-DEPT") 
+                SpecialDepartments = new HashSet<DepartmentId>
+                {
+                    DepartmentId.From("SPECIAL-DEPT"),
+                    DepartmentId.From("VIP-DEPT")
                 }
             };
-            
+
             return Create(options);
         }
     }
