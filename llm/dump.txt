@@ -1,7 +1,7 @@
 ﻿
 ===============================================================================
 ASP.NET PROJECT EXPORT
-Generated: 09/18/2025 11:03:49
+Generated: 09/18/2025 11:04:56
 Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
 ===============================================================================
 
@@ -18,132 +18,20 @@ C:\USERS\KUSHAL\SOURCE\REPOS\AVOIDMAGICNUMBERS
 |   README.md
 |   
 +---AntiPattern
-|   |   AntiPattern.csproj
-|   |   RoleAssignmentService_BadWay.cs
-|   |   
-|   +---bin
-|   |   \---Debug
-|   |       \---net10.0
-|   |               AntiPattern.deps.json
-|   |               AntiPattern.dll
-|   |               AntiPattern.pdb
-|   |               
-|   \---obj
-|       |   AntiPattern.csproj.nuget.dgspec.json
-|       |   AntiPattern.csproj.nuget.g.props
-|       |   AntiPattern.csproj.nuget.g.targets
-|       |   project.assets.json
-|       |   project.nuget.cache
-|       |   
-|       \---Debug
-|           \---net10.0
-|               |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
-|               |   AntiPattern.AssemblyInfo.cs
-|               |   AntiPattern.AssemblyInfoInputs.cache
-|               |   AntiPattern.assets.cache
-|               |   AntiPattern.csproj.BuildWithSkipAnalyzers
-|               |   AntiPattern.csproj.CoreCompileInputs.cache
-|               |   AntiPattern.csproj.FileListAbsolute.txt
-|               |   AntiPattern.dll
-|               |   AntiPattern.GeneratedMSBuildEditorConfig.editorconfig
-|               |   AntiPattern.GlobalUsings.g.cs
-|               |   AntiPattern.pdb
-|               |   
-|               +---ref
-|               |       AntiPattern.dll
-|               |       
-|               \---refint
-|                       AntiPattern.dll
-|                       
+|       AntiPattern.csproj
+|       RoleAssignmentService_BadWay.cs
+|       
 +---DemonstrationConsole
-|   |   DemonstrationConsole.csproj
-|   |   Program.cs
-|   |   
-|   +---bin
-|   |   \---Debug
-|   |       \---net10.0
-|   |               AntiPattern.dll
-|   |               AntiPattern.pdb
-|   |               DemonstrationConsole.deps.json
-|   |               DemonstrationConsole.dll
-|   |               DemonstrationConsole.exe
-|   |               DemonstrationConsole.pdb
-|   |               DemonstrationConsole.runtimeconfig.json
-|   |               ModernApproach.dll
-|   |               ModernApproach.pdb
-|   |               
-|   \---obj
-|       |   DemonstrationConsole.csproj.nuget.dgspec.json
-|       |   DemonstrationConsole.csproj.nuget.g.props
-|       |   DemonstrationConsole.csproj.nuget.g.targets
-|       |   project.assets.json
-|       |   project.nuget.cache
-|       |   
-|       \---Debug
-|           \---net10.0
-|               |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
-|               |   apphost.exe
-|               |   Demonstr.B4B29078.Up2Date
-|               |   DemonstrationConsole.AssemblyInfo.cs
-|               |   DemonstrationConsole.AssemblyInfoInputs.cache
-|               |   DemonstrationConsole.assets.cache
-|               |   DemonstrationConsole.csproj.AssemblyReference.cache
-|               |   DemonstrationConsole.csproj.BuildWithSkipAnalyzers
-|               |   DemonstrationConsole.csproj.CoreCompileInputs.cache
-|               |   DemonstrationConsole.csproj.FileListAbsolute.txt
-|               |   DemonstrationConsole.dll
-|               |   DemonstrationConsole.GeneratedMSBuildEditorConfig.editorconfig
-|               |   DemonstrationConsole.genruntimeconfig.cache
-|               |   DemonstrationConsole.GlobalUsings.g.cs
-|               |   DemonstrationConsole.pdb
-|               |   
-|               +---ref
-|               |       DemonstrationConsole.dll
-|               |       
-|               \---refint
-|                       DemonstrationConsole.dll
-|                       
+|       DemonstrationConsole.csproj
+|       Program.cs
+|       
 +---llm
 |       dump.txt
 |       
 \---ModernApproach
-    |   ModernApproach.csproj
-    |   RoleAssignmentService_GoodWay.cs
-    |   
-    +---bin
-    |   \---Debug
-    |       \---net10.0
-    |               ModernApproach.deps.json
-    |               ModernApproach.dll
-    |               ModernApproach.pdb
-    |               
-    \---obj
-        |   ModernApproach.csproj.nuget.dgspec.json
-        |   ModernApproach.csproj.nuget.g.props
-        |   ModernApproach.csproj.nuget.g.targets
-        |   project.assets.json
-        |   project.nuget.cache
-        |   
-        \---Debug
-            \---net10.0
-                |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
-                |   ModernApproach.AssemblyInfo.cs
-                |   ModernApproach.AssemblyInfoInputs.cache
-                |   ModernApproach.assets.cache
-                |   ModernApproach.csproj.BuildWithSkipAnalyzers
-                |   ModernApproach.csproj.CoreCompileInputs.cache
-                |   ModernApproach.csproj.FileListAbsolute.txt
-                |   ModernApproach.dll
-                |   ModernApproach.GeneratedMSBuildEditorConfig.editorconfig
-                |   ModernApproach.GlobalUsings.g.cs
-                |   ModernApproach.pdb
-                |   
-                +---ref
-                |       ModernApproach.dll
-                |       
-                \---refint
-                        ModernApproach.dll
-                        
+        ModernApproach.csproj
+        RoleAssignmentService_GoodWay.cs
+        
 
 
 FILE CONTENTS:
@@ -344,14 +232,14 @@ class Program
 
 ================================================================================
 FILE: llm\dump.txt
-SIZE: 13.65 KB
-MODIFIED: 09/18/2025 11:03:49
+SIZE: 9.18 KB
+MODIFIED: 09/18/2025 11:04:56
 ================================================================================
 
 
 ===============================================================================
 ASP.NET PROJECT EXPORT
-Generated: 09/18/2025 11:03:49
+Generated: 09/18/2025 11:04:56
 Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
 ===============================================================================
 
@@ -368,132 +256,20 @@ C:\USERS\KUSHAL\SOURCE\REPOS\AVOIDMAGICNUMBERS
 |   README.md
 |   
 +---AntiPattern
-|   |   AntiPattern.csproj
-|   |   RoleAssignmentService_BadWay.cs
-|   |   
-|   +---bin
-|   |   \---Debug
-|   |       \---net10.0
-|   |               AntiPattern.deps.json
-|   |               AntiPattern.dll
-|   |               AntiPattern.pdb
-|   |               
-|   \---obj
-|       |   AntiPattern.csproj.nuget.dgspec.json
-|       |   AntiPattern.csproj.nuget.g.props
-|       |   AntiPattern.csproj.nuget.g.targets
-|       |   project.assets.json
-|       |   project.nuget.cache
-|       |   
-|       \---Debug
-|           \---net10.0
-|               |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
-|               |   AntiPattern.AssemblyInfo.cs
-|               |   AntiPattern.AssemblyInfoInputs.cache
-|               |   AntiPattern.assets.cache
-|               |   AntiPattern.csproj.BuildWithSkipAnalyzers
-|               |   AntiPattern.csproj.CoreCompileInputs.cache
-|               |   AntiPattern.csproj.FileListAbsolute.txt
-|               |   AntiPattern.dll
-|               |   AntiPattern.GeneratedMSBuildEditorConfig.editorconfig
-|               |   AntiPattern.GlobalUsings.g.cs
-|               |   AntiPattern.pdb
-|               |   
-|               +---ref
-|               |       AntiPattern.dll
-|               |       
-|               \---refint
-|                       AntiPattern.dll
-|                       
+|       AntiPattern.csproj
+|       RoleAssignmentService_BadWay.cs
+|       
 +---DemonstrationConsole
-|   |   DemonstrationConsole.csproj
-|   |   Program.cs
-|   |   
-|   +---bin
-|   |   \---Debug
-|   |       \---net10.0
-|   |               AntiPattern.dll
-|   |               AntiPattern.pdb
-|   |               DemonstrationConsole.deps.json
-|   |               DemonstrationConsole.dll
-|   |               DemonstrationConsole.exe
-|   |               DemonstrationConsole.pdb
-|   |               DemonstrationConsole.runtimeconfig.json
-|   |               ModernApproach.dll
-|   |               ModernApproach.pdb
-|   |               
-|   \---obj
-|       |   DemonstrationConsole.csproj.nuget.dgspec.json
-|       |   DemonstrationConsole.csproj.nuget.g.props
-|       |   DemonstrationConsole.csproj.nuget.g.targets
-|       |   project.assets.json
-|       |   project.nuget.cache
-|       |   
-|       \---Debug
-|           \---net10.0
-|               |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
-|               |   apphost.exe
-|               |   Demonstr.B4B29078.Up2Date
-|               |   DemonstrationConsole.AssemblyInfo.cs
-|               |   DemonstrationConsole.AssemblyInfoInputs.cache
-|               |   DemonstrationConsole.assets.cache
-|               |   DemonstrationConsole.csproj.AssemblyReference.cache
-|               |   DemonstrationConsole.csproj.BuildWithSkipAnalyzers
-|               |   DemonstrationConsole.csproj.CoreCompileInputs.cache
-|               |   DemonstrationConsole.csproj.FileListAbsolute.txt
-|               |   DemonstrationConsole.dll
-|               |   DemonstrationConsole.GeneratedMSBuildEditorConfig.editorconfig
-|               |   DemonstrationConsole.genruntimeconfig.cache
-|               |   DemonstrationConsole.GlobalUsings.g.cs
-|               |   DemonstrationConsole.pdb
-|               |   
-|               +---ref
-|               |       DemonstrationConsole.dll
-|               |       
-|               \---refint
-|                       DemonstrationConsole.dll
-|                       
+|       DemonstrationConsole.csproj
+|       Program.cs
+|       
 +---llm
 |       dump.txt
 |       
 \---ModernApproach
-    |   ModernApproach.csproj
-    |   RoleAssignmentService_GoodWay.cs
-    |   
-    +---bin
-    |   \---Debug
-    |       \---net10.0
-    |               ModernApproach.deps.json
-    |               ModernApproach.dll
-    |               ModernApproach.pdb
-    |               
-    \---obj
-        |   ModernApproach.csproj.nuget.dgspec.json
-        |   ModernApproach.csproj.nuget.g.props
-        |   ModernApproach.csproj.nuget.g.targets
-        |   project.assets.json
-        |   project.nuget.cache
-        |   
-        \---Debug
-            \---net10.0
-                |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
-                |   ModernApproach.AssemblyInfo.cs
-                |   ModernApproach.AssemblyInfoInputs.cache
-                |   ModernApproach.assets.cache
-                |   ModernApproach.csproj.BuildWithSkipAnalyzers
-                |   ModernApproach.csproj.CoreCompileInputs.cache
-                |   ModernApproach.csproj.FileListAbsolute.txt
-                |   ModernApproach.dll
-                |   ModernApproach.GeneratedMSBuildEditorConfig.editorconfig
-                |   ModernApproach.GlobalUsings.g.cs
-                |   ModernApproach.pdb
-                |   
-                +---ref
-                |       ModernApproach.dll
-                |       
-                \---refint
-                        ModernApproach.dll
-                        
+        ModernApproach.csproj
+        RoleAssignmentService_GoodWay.cs
+        
 
 
 FILE CONTENTS:
@@ -694,8 +470,8 @@ class Program
 
 ================================================================================
 FILE: llm\dump.txt
-SIZE: 13.65 KB
-MODIFIED: 09/18/2025 11:03:49
+SIZE: 9.18 KB
+MODIFIED: 09/18/2025 11:04:56
 ================================================================================
 
 
@@ -1165,7 +941,7 @@ Use at your own discretion.
 
 
 ===============================================================================
-EXPORT COMPLETED: 09/18/2025 11:03:49
+EXPORT COMPLETED: 09/18/2025 11:04:56
 Total Files Exported: 8
 Output File: C:\Users\kushal\source\repos\AvoidMagicNumbers\llm\dump.txt
 ===============================================================================
