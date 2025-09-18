@@ -15,6 +15,7 @@ $IncludeExtensions = @(
     "*.xml",          # XML files
     "*.csproj",       # C# project files
     "*.sln",          # Solution files
+    "*.slnx",         # new solution file in vs 2026  
     "*.config",       # Configuration files
     "*.cshtml",       # Razor views
     "*.razor",        # Razor components
