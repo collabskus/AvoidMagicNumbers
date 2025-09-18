@@ -1,7 +1,7 @@
 ﻿
 ===============================================================================
 ASP.NET PROJECT EXPORT
-Generated: 09/18/2025 15:50:53
+Generated: 09/18/2025 16:01:12
 Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
 ===============================================================================
 
@@ -348,8 +348,8 @@ MODIFIED: 09/18/2025 10:32:42
 
 ================================================================================
 FILE: ModernApproach\RoleAssignmentService_GoodWay.cs
-SIZE: 26.07 KB
-MODIFIED: 09/18/2025 15:50:25
+SIZE: 31.65 KB
+MODIFIED: 09/18/2025 16:00:59
 ================================================================================
 
 // ============================================
@@ -373,15 +373,12 @@ namespace ModernApproach
         public static implicit operator string(DepartmentId departmentId) => departmentId.Value;
         public override string ToString() => Value;
         
-        // Custom equality for case-insensitive comparison
-        public bool Equals(DepartmentId? other)
-        {
-            return other is not null && 
-                   string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
-        }
+        // Improved equality for case-insensitive comparison
+        public bool Equals(DepartmentId? other) =>
+            other is not null && string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
         
         public override int GetHashCode() => 
-            Value.ToUpperInvariant().GetHashCode();
+            StringComparer.OrdinalIgnoreCase.GetHashCode(Value);
     }
     
     public record SupervisorId(string Value)
@@ -451,6 +448,61 @@ namespace ModernApproach
     }
 
     // ============================================
+    // RESULT TYPES - Better error handling
+    // ============================================
+    
+    public sealed record Result<T>
+    {
+        private Result(T? value, string? error)
+        {
+            Value = value;
+            Error = error;
+            IsSuccess = error is null;
+        }
+        
+        public T? Value { get; }
+        public string? Error { get; }
+        public bool IsSuccess { get; }
+        
+        public static Result<T> Success(T value) => new(value, null);
+        public static Result<T> Failure(string error) => new(default, error);
+    }
+
+    public sealed record RoleAssignmentSuccess(RoleId RoleId, StandardRoleType RoleType);
+    public sealed record RoleAssignmentFailure(StandardRoleType RoleType, string Error);
+    
+    public sealed record RoleAssignmentResult
+    {
+        public IReadOnlyList<RoleAssignmentSuccess> Successes { get; init; } = Array.Empty<RoleAssignmentSuccess>();
+        public IReadOnlyList<RoleAssignmentFailure> Failures { get; init; } = Array.Empty<RoleAssignmentFailure>();
+        
+        public bool IsFullySuccessful => Failures.Count == 0 && Successes.Count > 0;
+        public bool IsPartiallySuccessful => Successes.Count > 0 && Failures.Count > 0;
+        public bool IsCompleteFailure => Successes.Count == 0 && Failures.Count > 0;
+        
+        public static RoleAssignmentResult Success(params RoleAssignmentSuccess[] successes) => 
+            new() { Successes = successes.ToList().AsReadOnly() };
+        
+        public static RoleAssignmentResult Failure(params RoleAssignmentFailure[] failures) => 
+            new() { Failures = failures.ToList().AsReadOnly() };
+            
+        public static RoleAssignmentResult Mixed(
+            IEnumerable<RoleAssignmentSuccess> successes, 
+            IEnumerable<RoleAssignmentFailure> failures) => 
+            new() { 
+                Successes = successes.ToList().AsReadOnly(),
+                Failures = failures.ToList().AsReadOnly()
+            };
+    }
+
+    public sealed record ValidationResult(bool IsValid, IReadOnlyList<string> Errors)
+    {
+        public static ValidationResult Success() => new(true, Array.Empty<string>());
+        public static ValidationResult Failure(params string[] errors) => 
+            new(false, errors.ToList().AsReadOnly());
+    }
+
+    // ============================================
     // DATA STRUCTURES - Immutable domain models
     // ============================================
     
@@ -479,37 +531,27 @@ namespace ModernApproach
         DateTime CreatedDate
     );
 
-    public sealed record RoleAssignmentResult
-    {
-        public bool IsSuccess { get; init; }
-        public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
-        public IReadOnlyList<RoleId> AssignedRoleIds { get; init; } = Array.Empty<RoleId>();
-        
-        public static RoleAssignmentResult Success(params RoleId[] roleIds) => 
-            new() { IsSuccess = true, AssignedRoleIds = roleIds.ToList().AsReadOnly() };
-        
-        public static RoleAssignmentResult Failure(params string[] errors) => 
-            new() { IsSuccess = false, Errors = errors.ToList().AsReadOnly() };
-    }
-
-    public sealed record ValidationResult(bool IsValid, IReadOnlyList<string> Errors)
-    {
-        public static ValidationResult Success() => new(true, Array.Empty<string>());
-        public static ValidationResult Failure(params string[] errors) => 
-            new(false, errors.ToList().AsReadOnly());
-    }
-
     // ============================================
     // CONFIGURATION - Externalized settings
     // ============================================
     
     public sealed class RoleAssignmentConfiguration
     {
+        private TimeSpan _transactionTimeout = TimeSpan.FromMinutes(5);
+        
         public IReadOnlySet<DepartmentId> SpecialDepartmentCodes { get; init; } = 
             new HashSet<DepartmentId> { new("SPECIAL-DEPT") };
+        
         public bool IsVerboseLoggingEnabled { get; init; }
         public bool ValidateExistingRoles { get; init; } = true;
-        public TimeSpan TransactionTimeout { get; init; } = TimeSpan.FromMinutes(5);
+        public bool AllowPartialFailures { get; init; } = false;
+        
+        public TimeSpan TransactionTimeout
+        {
+            get => _transactionTimeout;
+            init => _transactionTimeout = value > TimeSpan.Zero ? value : 
+                throw new ArgumentOutOfRangeException(nameof(value), "Timeout must be positive");
+        }
     }
 
     // ============================================
@@ -519,12 +561,14 @@ namespace ModernApproach
     public interface IUserRoleRepository
     {
         Task<int> CreateUserRoleAsync(CreateUserRoleCommand command, CancellationToken cancellationToken = default);
-        Task<bool> UserRoleExistsAsync(UserId userId, StandardRoleType roleType, CancellationToken cancellationToken = default);
+        Task<int> CreateUserRolesAsync(IEnumerable<CreateUserRoleCommand> commands, CancellationToken cancellationToken = default);
+        Task<IReadOnlySet<StandardRoleType>> GetExistingRoleTypesAsync(UserId userId, CancellationToken cancellationToken = default);
     }
 
     public interface IWorkAssignmentRepository
     {
         Task<int> CreateWorkAssignmentAsync(WorkAssignmentCommand command, CancellationToken cancellationToken = default);
+        Task<int> CreateWorkAssignmentsAsync(IEnumerable<WorkAssignmentCommand> commands, CancellationToken cancellationToken = default);
     }
 
     public interface ISupervisorService
@@ -542,11 +586,12 @@ namespace ModernApproach
         void LogWarning(string message, params object[] args);
     }
 
-    public interface IUnitOfWork
+    public interface IUnitOfWork : IDisposable
     {
         Task BeginTransactionAsync(CancellationToken cancellationToken = default);
         Task CommitAsync(CancellationToken cancellationToken = default);
         Task RollbackAsync(CancellationToken cancellationToken = default);
+        CancellationToken Token { get; }
     }
 
     public interface IRoleAssignmentFactory
@@ -574,6 +619,21 @@ namespace ModernApproach
                 _ => roleType.ToString()
             };
         }
+    }
+
+    // ============================================
+    // OPTIONS PATTERN - Reduce constructor complexity
+    // ============================================
+    
+    public sealed class RoleAssignmentServiceOptions
+    {
+        public required IUserRoleRepository UserRoleRepository { get; init; }
+        public required IWorkAssignmentRepository WorkAssignmentRepository { get; init; }
+        public required ISupervisorService SupervisorService { get; init; }
+        public required IRoleAssignmentFactory RoleAssignmentFactory { get; init; }
+        public required IUnitOfWork UnitOfWork { get; init; }
+        public required ILogger Logger { get; init; }
+        public required RoleAssignmentConfiguration Configuration { get; init; }
     }
 
     // ============================================
@@ -631,46 +691,99 @@ namespace ModernApproach
     }
 
     // ============================================
-    // SERVICE - Main business logic with DI
+    // SERVICE - Main business logic with improved DI
     // ============================================
     
     public sealed class RoleAssignmentService_GoodWay
     {
-        private readonly IUserRoleRepository userRoleRepository;
-        private readonly IWorkAssignmentRepository workAssignmentRepository;
-        private readonly ISupervisorService supervisorService;
-        private readonly IRoleAssignmentFactory roleAssignmentFactory;
-        private readonly IUnitOfWork unitOfWork;
-        private readonly ILogger logger;
-        private readonly RoleAssignmentConfiguration configuration;
+        private readonly RoleAssignmentServiceOptions options;
 
-        // Constructor with dependency injection
-        public RoleAssignmentService_GoodWay(
-            IUserRoleRepository userRoleRepository,
-            IWorkAssignmentRepository workAssignmentRepository,
-            ISupervisorService supervisorService,
-            IRoleAssignmentFactory roleAssignmentFactory,
-            IUnitOfWork unitOfWork,
-            ILogger logger,
-            RoleAssignmentConfiguration configuration)
+        // Simplified constructor using options pattern
+        public RoleAssignmentService_GoodWay(RoleAssignmentServiceOptions options)
         {
-            this.userRoleRepository = userRoleRepository ?? throw new ArgumentNullException(nameof(userRoleRepository));
-            this.workAssignmentRepository = workAssignmentRepository ?? throw new ArgumentNullException(nameof(workAssignmentRepository));
-            this.supervisorService = supervisorService ?? throw new ArgumentNullException(nameof(supervisorService));
-            this.roleAssignmentFactory = roleAssignmentFactory ?? throw new ArgumentNullException(nameof(roleAssignmentFactory));
-            this.unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            this.options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
-        // Main public method - async with result pattern and cancellation support
+        // Main public method - async with improved result pattern
         public async Task<RoleAssignmentResult> AssignStandardRolesAsync(
             UserId userId, 
             DepartmentId departmentId, 
             DateTime assignedDate,
             CancellationToken cancellationToken = default)
         {
-            // Input validation
+            ValidateInputs(userId, departmentId);
+
+            options.Logger.LogInformation(
+                "Starting role assignment for user {UserId} in department {DepartmentId}",
+                userId.Value,
+                departmentId.Value);
+
+            using var timeoutCts = new CancellationTokenSource(options.Configuration.TransactionTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            var token = linkedCts.Token;
+
+            try
+            {
+                using var transaction = await StartTransactionAsync(token);
+                
+                var roleAssignments = await options.RoleAssignmentFactory.CreateStandardAssignmentsAsync(departmentId, token);
+                
+                if (!roleAssignments.Any())
+                {
+                    options.Logger.LogWarning("No standard role assignments defined for department {DepartmentId}", departmentId.Value);
+                    return RoleAssignmentResult.Success(); // Consider if this should be failure
+                }
+                
+                var results = await ProcessRoleAssignmentsAsync(userId, departmentId, assignedDate, roleAssignments, token);
+                
+                if (ShouldCommitTransaction(results))
+                {
+                    await transaction.CommitAsync();
+                    options.Logger.LogInformation(
+                        "Successfully assigned {SuccessCount} roles to user {UserId} (Failed: {FailureCount})",
+                        results.Successes.Count,
+                        userId.Value,
+                        results.Failures.Count);
+                }
+                else
+                {
+                    await transaction.RollbackAsync();
+                    options.Logger.LogWarning(
+                        "Transaction rolled back for user {UserId} due to failures",
+                        userId.Value);
+                }
+                
+                return results;
+            }
+            catch (OperationCanceledException)
+            {
+                options.Logger.LogWarning("Role assignment operation was cancelled for user {UserId}", userId.Value);
+                return RoleAssignmentResult.Failure(new RoleAssignmentFailure(StandardRoleType.DepartmentManager, "Operation was cancelled"));
+            }
+            catch (Exception ex)
+            {
+                options.Logger.LogError(ex, 
+                    "Failed to assign roles for user {UserId} in department {DepartmentId}",
+                    userId.Value,
+                    departmentId.Value);
+                
+                return RoleAssignmentResult.Failure(new RoleAssignmentFailure(StandardRoleType.DepartmentManager, $"Role assignment failed: {ex.Message}"));
+            }
+        }
+
+        // Synchronous overload for backward compatibility
+        public void AssignStandardRoles(UserId userId, DepartmentId departmentId, DateTime assignedDate)
+        {
+            var result = AssignStandardRolesAsync(userId, departmentId, assignedDate).GetAwaiter().GetResult();
+            if (result.IsCompleteFailure)
+            {
+                var errors = string.Join(", ", result.Failures.Select(f => f.Error));
+                throw new InvalidOperationException($"Role assignment failed: {errors}");
+            }
+        }
+
+        private static void ValidateInputs(UserId userId, DepartmentId departmentId)
+        {
             ArgumentNullException.ThrowIfNull(userId);
             ArgumentNullException.ThrowIfNull(departmentId);
             
@@ -679,108 +792,98 @@ namespace ModernApproach
             
             if (string.IsNullOrWhiteSpace(departmentId.Value))
                 throw new ArgumentException("Department ID cannot be null or empty", nameof(departmentId));
+        }
 
-            logger.LogInformation(
-                "Starting role assignment for user {0} in department {1}",
-                userId.Value,
-                departmentId.Value);
+        private async Task<IUnitOfWork> StartTransactionAsync(CancellationToken cancellationToken)
+        {
+            await options.UnitOfWork.BeginTransactionAsync(cancellationToken);
+            return options.UnitOfWork;
+        }
 
-            var assignedRoleIds = new List<RoleId>();
+        private async Task<RoleAssignmentResult> ProcessRoleAssignmentsAsync(
+            UserId userId,
+            DepartmentId departmentId,
+            DateTime assignedDate,
+            IReadOnlyList<RoleAssignment> roleAssignments,
+            CancellationToken cancellationToken)
+        {
+            var successes = new List<RoleAssignmentSuccess>();
+            var failures = new List<RoleAssignmentFailure>();
 
-            try
+            // Get existing role types in one call for efficiency
+            var existingRoleTypes = options.Configuration.ValidateExistingRoles
+                ? await options.UserRoleRepository.GetExistingRoleTypesAsync(userId, cancellationToken)
+                : new HashSet<StandardRoleType>();
+
+            foreach (var assignment in roleAssignments)
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(configuration.TransactionTimeout);
-
-                await unitOfWork.BeginTransactionAsync(cts.Token);
-                
-                // Get the roles this user should have
-                var roleAssignments = await roleAssignmentFactory.CreateStandardAssignmentsAsync(departmentId, cts.Token);
-                
-                // Process each role with validation
-                foreach (var assignment in roleAssignments)
+                try
                 {
-                    var validation = await ValidateRoleAssignmentAsync(userId, departmentId, assignment, cts.Token);
+                    var validation = await ValidateRoleAssignmentAsync(userId, assignment, existingRoleTypes, cancellationToken);
                     if (!validation.IsValid)
                     {
-                        logger.LogWarning(
-                            "Validation failed for role {0}: {1}",
+                        var error = string.Join(", ", validation.Errors);
+                        options.Logger.LogWarning(
+                            "Validation failed for role {RoleType}: {Error}",
                             assignment.RoleType,
-                            string.Join(", ", validation.Errors));
+                            error);
                         
-                        if (configuration.ValidateExistingRoles)
+                        failures.Add(new RoleAssignmentFailure(assignment.RoleType, error));
+                        
+                        if (!options.Configuration.AllowPartialFailures)
                         {
-                            await unitOfWork.RollbackAsync(cts.Token);
-                            return RoleAssignmentResult.Failure(validation.Errors.ToArray());
+                            break; // Stop processing on first failure if not allowing partial failures
                         }
                         continue;
                     }
                     
-                    var roleId = await ProcessSingleRoleAssignmentAsync(userId, departmentId, assignedDate, assignment, cts.Token);
-                    if (roleId != null)
+                    var roleId = await ProcessSingleRoleAssignmentAsync(userId, departmentId, assignedDate, assignment, cancellationToken);
+                    successes.Add(new RoleAssignmentSuccess(roleId, assignment.RoleType));
+                }
+                catch (Exception ex)
+                {
+                    options.Logger.LogError(ex,
+                        "Failed to process role assignment {RoleType} for user {UserId}",
+                        assignment.RoleType,
+                        userId.Value);
+                    
+                    failures.Add(new RoleAssignmentFailure(assignment.RoleType, ex.Message));
+                    
+                    if (!options.Configuration.AllowPartialFailures)
                     {
-                        assignedRoleIds.Add(roleId);
+                        break;
                     }
                 }
-                
-                await unitOfWork.CommitAsync(cts.Token);
-                
-                logger.LogInformation(
-                    "Successfully assigned {0} roles to user {1}",
-                    assignedRoleIds.Count,
-                    userId.Value);
-                
-                return RoleAssignmentResult.Success(assignedRoleIds.ToArray());
             }
-            catch (OperationCanceledException)
-            {
-                logger.LogWarning("Role assignment operation was cancelled for user {0}", userId.Value);
-                await unitOfWork.RollbackAsync(CancellationToken.None);
-                return RoleAssignmentResult.Failure("Operation was cancelled");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, 
-                    "Failed to assign roles for user {0} in department {1}",
-                    userId.Value,
-                    departmentId.Value);
-                
-                await unitOfWork.RollbackAsync(CancellationToken.None);
-                return RoleAssignmentResult.Failure($"Role assignment failed: {ex.Message}");
-            }
+
+            return RoleAssignmentResult.Mixed(successes, failures);
         }
 
-        // Synchronous overload for backward compatibility
-        public void AssignStandardRoles(UserId userId, DepartmentId departmentId, DateTime assignedDate)
+        private bool ShouldCommitTransaction(RoleAssignmentResult result)
         {
-            var result = AssignStandardRolesAsync(userId, departmentId, assignedDate).GetAwaiter().GetResult();
-            if (!result.IsSuccess)
-            {
-                throw new InvalidOperationException($"Role assignment failed: {string.Join(", ", result.Errors)}");
-            }
+            return options.Configuration.AllowPartialFailures 
+                ? result.Successes.Any() 
+                : result.IsFullySuccessful;
         }
 
         private async Task<ValidationResult> ValidateRoleAssignmentAsync(
-            UserId userId, 
-            DepartmentId departmentId,
+            UserId userId,
             RoleAssignment assignment,
+            IReadOnlySet<StandardRoleType> existingRoleTypes,
             CancellationToken cancellationToken)
         {
             var errors = new List<string>();
             
-            // Check if user already has this role
-            if (configuration.ValidateExistingRoles)
+            // Check if user already has this role (using cached result)
+            if (options.Configuration.ValidateExistingRoles && existingRoleTypes.Contains(assignment.RoleType))
             {
-                if (await userRoleRepository.UserRoleExistsAsync(userId, assignment.RoleType, cancellationToken))
-                {
-                    errors.Add(string.Format(
-                        RoleAssignmentConstants.ValidationMessages.UserAlreadyHasRole,
-                        assignment.RoleType.GetDisplayName()));
-                }
+                errors.Add(string.Format(
+                    RoleAssignmentConstants.ValidationMessages.UserAlreadyHasRole,
+                    assignment.RoleType.GetDisplayName()));
             }
             
             // Validate supervisor exists
-            if (!await supervisorService.SupervisorExistsAsync(assignment.SupervisorId, cancellationToken))
+            if (!await options.SupervisorService.SupervisorExistsAsync(assignment.SupervisorId, cancellationToken))
             {
                 errors.Add(string.Format(
                     RoleAssignmentConstants.ValidationMessages.SupervisorNotFound,
@@ -813,51 +916,40 @@ namespace ModernApproach
                 assignment.SupervisorId
             );
 
-            logger.LogInformation(
-                "Assigning {0} role to user {1}",
+            options.Logger.LogInformation(
+                "Assigning {RoleType} role to user {UserId}",
                 assignment.RoleType.GetDisplayName(),
                 userId.Value);
             
-            if (configuration.IsVerboseLoggingEnabled)
+            if (options.Configuration.IsVerboseLoggingEnabled)
             {
-                logger.LogDebug(
-                    "Role assignment details - RoleId: {0}, SupervisorId: {1}, Description: {2}",
+                options.Logger.LogDebug(
+                    "Role assignment details - RoleId: {RoleId}, SupervisorId: {SupervisorId}, Description: {Description}",
                     roleId.Value,
                     assignment.SupervisorId.Value,
                     assignment.Description);
             }
 
-            try
-            {
-                // Execute database command through repository
-                await userRoleRepository.CreateUserRoleAsync(command, cancellationToken);
-                
-                // Create work assignment
-                var workCommand = new WorkAssignmentCommand(
-                    assignment.SupervisorId,
-                    assignment.WorkRole,
-                    userId,
-                    ResourceType.UserAccount,
-                    assignedDate
-                );
-                
-                await workAssignmentRepository.CreateWorkAssignmentAsync(workCommand, cancellationToken);
-                
-                logger.LogDebug(
-                    "Successfully created role assignment {0} for user {1}",
-                    roleId.Value,
-                    userId.Value);
-                
-                return roleId;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, 
-                    "Failed to process role assignment {0} for user {1}",
-                    assignment.RoleType,
-                    userId.Value);
-                throw;
-            }
+            // Execute database command through repository
+            await options.UserRoleRepository.CreateUserRoleAsync(command, cancellationToken);
+            
+            // Create work assignment
+            var workCommand = new WorkAssignmentCommand(
+                assignment.SupervisorId,
+                assignment.WorkRole,
+                userId,
+                ResourceType.UserAccount,
+                assignedDate
+            );
+            
+            await options.WorkAssignmentRepository.CreateWorkAssignmentAsync(workCommand, cancellationToken);
+            
+            options.Logger.LogDebug(
+                "Successfully created role assignment {RoleId} for user {UserId}",
+                roleId.Value,
+                userId.Value);
+            
+            return roleId;
         }
     }
 
@@ -926,9 +1018,20 @@ namespace ModernApproach
             return Task.FromResult(1);
         }
 
-        public Task<bool> UserRoleExistsAsync(UserId userId, StandardRoleType roleType, CancellationToken cancellationToken = default)
+        public Task<int> CreateUserRolesAsync(IEnumerable<CreateUserRoleCommand> commands, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(false); // Always return false for demo
+            var count = 0;
+            foreach (var command in commands)
+            {
+                Console.WriteLine($"  [REPO] Batch creating user role - RoleId: {command.RoleId.Value}, UserId: {command.UserId.Value}");
+                count++;
+            }
+            return Task.FromResult(count);
+        }
+
+        public Task<IReadOnlySet<StandardRoleType>> GetExistingRoleTypesAsync(UserId userId, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlySet<StandardRoleType>>(new HashSet<StandardRoleType>()); // Always return empty for demo
         }
     }
 
@@ -938,6 +1041,17 @@ namespace ModernApproach
         {
             Console.WriteLine($"  [REPO] Creating work assignment - Supervisor: {command.SupervisorId.Value}, Role: {command.RoleCode}");
             return Task.FromResult(1);
+        }
+
+        public Task<int> CreateWorkAssignmentsAsync(IEnumerable<WorkAssignmentCommand> commands, CancellationToken cancellationToken = default)
+        {
+            var count = 0;
+            foreach (var command in commands)
+            {
+                Console.WriteLine($"  [REPO] Batch creating work assignment - Supervisor: {command.SupervisorId.Value}, Role: {command.RoleCode}");
+                count++;
+            }
+            return Task.FromResult(count);
         }
     }
 
@@ -961,8 +1075,11 @@ namespace ModernApproach
 
     public sealed class DemoUnitOfWork : IUnitOfWork
     {
+        public CancellationToken Token { get; private set; }
+
         public Task BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
+            Token = cancellationToken;
             Console.WriteLine("  [UOW] Beginning transaction");
             return Task.CompletedTask;
         }
@@ -978,6 +1095,11 @@ namespace ModernApproach
             Console.WriteLine("  [UOW] Rolling back transaction");
             return Task.CompletedTask;
         }
+
+        public void Dispose()
+        {
+            // No-op for demo
+        }
     }
 
     // ============================================
@@ -992,15 +1114,18 @@ namespace ModernApproach
             var logger = new ConsoleLogger();
             var supervisorService = new DemoSupervisorService();
             
-            return new RoleAssignmentService_GoodWay(
-                new DemoUserRoleRepository(),
-                new DemoWorkAssignmentRepository(),
-                supervisorService,
-                new RoleAssignmentFactory(supervisorService, configuration),
-                new DemoUnitOfWork(),
-                logger,
-                configuration
-            );
+            var options = new RoleAssignmentServiceOptions
+            {
+                UserRoleRepository = new DemoUserRoleRepository(),
+                WorkAssignmentRepository = new DemoWorkAssignmentRepository(),
+                SupervisorService = supervisorService,
+                RoleAssignmentFactory = new RoleAssignmentFactory(supervisorService, configuration),
+                UnitOfWork = new DemoUnitOfWork(),
+                Logger = logger,
+                Configuration = configuration
+            };
+            
+            return new RoleAssignmentService_GoodWay(options);
         }
     }
 }
@@ -1294,347 +1419,7 @@ Use at your own discretion.
 
 
 ===============================================================================
-EXPORT COMPLETED: 09/18/2025 15:50:53
+EXPORT COMPLETED: 09/18/2025 16:01:12
 Total Files Exported: 9
 Output File: C:\Users\kushal\source\repos\AvoidMagicNumbers\llm\dump.txt
 ===============================================================================
-Windows PowerShell
-Copyright (C) Microsoft Corporation. All rights reserved.
-
-Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
-
-PS C:\Users\kushal> Set-Location "C:\Users\kushal\source\repos\AvoidMagicNumbers"; git clean -dfx; .\Export-Project.ps1 -ProjectPath "C:\Users\kushal\source\repos\AvoidMagicNumbers" -OutputFile "llm\dump.txt"; dotnet clean; dotnet build; dotnet run --project DemonstrationConsole; git add .; git commit --message "add dump"; git pull --rebase origin master; git push origin master;
-Removing AntiPattern/bin/
-Removing AntiPattern/obj/
-Removing DemonstrationConsole/bin/
-Removing DemonstrationConsole/obj/
-Removing ModernApproach/bin/
-Removing ModernApproach/obj/
-Starting project export...
-Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
-Output File: llm\dump.txt
-Generating directory structure...
-Collecting files...
-Found 9 files to export
-Processing (1/9): .github\workflows\build-and-test.yml
-Processing (2/9): AntiPattern\AntiPattern.csproj
-Processing (3/9): AntiPattern\RoleAssignmentService_BadWay.cs
-Processing (4/9): AvoidMagicNumbers.slnx
-Processing (5/9): DemonstrationConsole\DemonstrationConsole.csproj
-Processing (6/9): DemonstrationConsole\Program.cs
-Processing (7/9): ModernApproach\ModernApproach.csproj
-Processing (8/9): ModernApproach\RoleAssignmentService_GoodWay.cs
-Processing (9/9): README.md
-
-Export completed successfully!
-Output file: C:\Users\kushal\source\repos\AvoidMagicNumbers\llm\dump.txt
-Total files exported: 9
-Output file size: 0.05 MB
-    info NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy
-
-Build succeeded in 0.4s
-Restore complete (0.5s)
-    info NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy
-  ModernApproach failed with 1 error(s) (0.2s)
-    C:\Users\kushal\source\repos\AvoidMagicNumbers\ModernApproach\RoleAssignmentService_GoodWay.cs(625,25): error CS0117: 'Task' does not contain a definition for 'CompletedToken'
-  AntiPattern succeeded with 1 warning(s) (0.3s) → AntiPattern\bin\Debug\net10.0\AntiPattern.dll
-    C:\Users\kushal\source\repos\AvoidMagicNumbers\AntiPattern\RoleAssignmentService_BadWay.cs(18,39): warning CS8600: Converting null literal or possible null value to non-nullable type.
-
-Build failed with 1 error(s) and 1 warning(s) in 1.1s
-C:\Users\kushal\source\repos\AvoidMagicNumbers\ModernApproach\RoleAssignmentService_GoodWay.cs(625,25): error CS0117: 'Task' does not contain a definition for 'CompletedToken'
-
-The build failed. Fix the build errors and run again.
-warning: in the working copy of 'llm/dump.txt', LF will be replaced by CRLF the next time Git touches it
-[master 060eb02] add dump
- 1 file changed, 5 insertions(+), 4 deletions(-)
-From https://github.com/collabskus/AvoidMagicNumbers
- * branch            master     -> FETCH_HEAD
-Current branch master is up to date.
-Enumerating objects: 13, done.
-Counting objects: 100% (13/13), done.
-Delta compression using up to 12 threads
-Compressing objects: 100% (7/7), done.
-Writing objects: 100% (8/8), 680 bytes | 680.00 KiB/s, done.
-Total 8 (delta 5), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas: 100% (5/5), completed with 4 local objects.
-To https://github.com/collabskus/AvoidMagicNumbers.git
-   90ec55b..060eb02  master -> master
-PS C:\Users\kushal\source\repos\AvoidMagicNumbers>
-PS C:\Users\kushal\source\repos\AvoidMagicNumbers> Set-Location "C:\Users\kushal\source\repos\AvoidMagicNumbers"; git clean -dfx; .\Export-Project.ps1 -ProjectPath "C:\Users\kushal\source\repos\AvoidMagicNumbers" -OutputFile "llm\dump.txt"; dotnet clean; dotnet build; dotnet run --project DemonstrationConsole; git add .; git commit --message "add dump"; git pull --rebase origin master; git push origin master;
-Removing AntiPattern/bin/
-Removing AntiPattern/obj/
-Removing DemonstrationConsole/bin/
-Removing DemonstrationConsole/obj/
-Removing ModernApproach/bin/
-Removing ModernApproach/obj/
-Starting project export...
-Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
-Output File: llm\dump.txt
-Generating directory structure...
-Collecting files...
-Found 9 files to export
-Processing (1/9): .github\workflows\build-and-test.yml
-Processing (2/9): AntiPattern\AntiPattern.csproj
-Processing (3/9): AntiPattern\RoleAssignmentService_BadWay.cs
-Processing (4/9): AvoidMagicNumbers.slnx
-Processing (5/9): DemonstrationConsole\DemonstrationConsole.csproj
-Processing (6/9): DemonstrationConsole\Program.cs
-Processing (7/9): ModernApproach\ModernApproach.csproj
-Processing (8/9): ModernApproach\RoleAssignmentService_GoodWay.cs
-Processing (9/9): README.md
-
-Export completed successfully!
-Output file: C:\Users\kushal\source\repos\AvoidMagicNumbers\llm\dump.txt
-Total files exported: 9
-Output file size: 0.05 MB
-    info NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy
-
-Build succeeded in 0.4s
-Restore complete (0.6s)
-    info NETSDK1057: You are using a preview version of .NET. See: https://aka.ms/dotnet-support-policy
-  ModernApproach succeeded (0.2s) → ModernApproach\bin\Debug\net10.0\ModernApproach.dll
-  AntiPattern succeeded with 1 warning(s) (0.3s) → AntiPattern\bin\Debug\net10.0\AntiPattern.dll
-    C:\Users\kushal\source\repos\AvoidMagicNumbers\AntiPattern\RoleAssignmentService_BadWay.cs(18,39): warning CS8600: Converting null literal or possible null value to non-nullable type.
-  DemonstrationConsole succeeded (0.2s) → DemonstrationConsole\bin\Debug\net10.0\DemonstrationConsole.dll
-
-Build succeeded with 1 warning(s) in 1.3s
-=== ANTI-PATTERN: Magic Numbers in Loops ===
-- for (int i = 6; i <= 7; i++) - what do these numbers mean?
-- Hard-coded conditions based on loop counter values
-- Business logic buried inside loop iteration
-- Additional magic numbers scattered throughout (101, 202, 203, 25)
-
-Assigning role type 6 (what role?) to user user123
-  Executing InsertUserRole with 7 parameters
-  Creating work assignment: Supervisor=manager-IT-DEPT, RoleCode=101, ResourceType=25
-Assigning role type 7 (what role?) to user user123
-  Executing InsertUserRole with 7 parameters
-  Creating work assignment: Supervisor=coordinator-IT-DEPT, RoleCode=203, ResourceType=25
-
-=== MODERN APPROACH: Type-Safe, Explicit Business Logic ===
-Benefits of this refactored approach:
-- Eliminates magic number loop entirely
-- Strong types prevent parameter mix-ups at compile time
-- Command objects replace loose parameter dictionaries
-- Immutable records with clear business meaning
-- Type-safe comparisons instead of string manipulation
-- Each role assignment is explicit and testable
-
-[INFO] Starting role assignment for user user123 in department IT-DEPT
-  [UOW] Beginning transaction
-[INFO] Assigning Department Manager role to user user123
-  [REPO] Creating user role - RoleId: 35878683-513d-4b7e-ae6b-54e243eb1a21, UserId: user123
-  [REPO] Creating work assignment - Supervisor: manager-IT-DEPT, Role: ProjectManager
-[DEBUG] Successfully created role assignment 35878683-513d-4b7e-ae6b-54e243eb1a21 for user user123
-[INFO] Assigning Project Coordinator role to user user123
-  [REPO] Creating user role - RoleId: 5397f4a5-85f6-4038-9147-60ef7ca5bcc9, UserId: user123
-  [REPO] Creating work assignment - Supervisor: coordinator-IT-DEPT, Role: GeneralAdministrator
-[DEBUG] Successfully created role assignment 5397f4a5-85f6-4038-9147-60ef7ca5bcc9 for user user123
-  [UOW] Committing transaction
-[INFO] Successfully assigned 2 roles to user user123
-
-1. ELIMINATE MAGIC NUMBER LOOPS
-   Replace: for (int i = 6; i <= 7; i++)
-   With: foreach (var role in GetRequiredRoles())
-
-2. USE DESCRIPTIVE ENUMS
-   Replace: if (i == 6) // FOAOwner
-   With: if (role.Type == SolicitationRoleType.FOAOwner)
-
-3. CREATE STRONGLY-TYPED DOMAIN OBJECTS
-   Replace: string userId, string departmentId
-   With: UserId userId, DepartmentId departmentId
-
-4. USE COMMAND OBJECTS INSTEAD OF DICTIONARIES
-   Replace: parameters.Add("UserId", userId)
-   With: new CreateUserRoleCommand(userId, departmentId, ...)
-
-5. LEVERAGE COMPILE-TIME TYPE SAFETY
-   Replace: String comparisons and casting
-   With: Record equality and strong typing
-
-This pattern applies to your dependency injection work:
-- Replace ServiceFactory static calls with injected dependencies
-- Make configuration paths explicit parameters
-- Use constructor injection instead of hidden factory dependencies
-warning: in the working copy of 'llm/dump.txt', LF will be replaced by CRLF the next time Git touches it
-[master 32bffe4] add dump
- 1 file changed, 4 insertions(+), 4 deletions(-)
-From https://github.com/collabskus/AvoidMagicNumbers
- * branch            master     -> FETCH_HEAD
-Current branch master is up to date.
-Enumerating objects: 13, done.
-Counting objects: 100% (13/13), done.
-Delta compression using up to 12 threads
-Compressing objects: 100% (7/7), done.
-Writing objects: 100% (8/8), 866 bytes | 866.00 KiB/s, done.
-Total 8 (delta 5), reused 0 (delta 0), pack-reused 0 (from 0)
-remote: Resolving deltas: 100% (5/5), completed with 3 local objects.
-To https://github.com/collabskus/AvoidMagicNumbers.git
-   060eb02..32bffe4  master -> master
-PS C:\Users\kushal\source\repos\AvoidMagicNumbers>
-PS C:\Users\kushal\source\repos\AvoidMagicNumbers>
-
-Looking at your `RoleAssignmentService_GoodWay` implementation, I can see several areas where it could be improved. Here are my suggestions:
-
-## 1. Fix the Compilation Error
-
-First, there's a bug on line 625:
-```csharp
-// This doesn't exist in .NET
-return Task.FromResult(Task.CompletedToken);
-
-// Should be:
-return Task.CompletedTask;
-```
-
-## 2. Simplify the Constructor
-
-The current constructor has 7 dependencies, which is quite high. Consider using the options pattern or a composite service:
-
-```csharp
-public sealed class RoleAssignmentServiceOptions
-{
-    public required IUserRoleRepository UserRoleRepository { get; init; }
-    public required IWorkAssignmentRepository WorkAssignmentRepository { get; init; }
-    public required ISupervisorService SupervisorService { get; init; }
-    public required IRoleAssignmentFactory RoleAssignmentFactory { get; init; }
-    public required IUnitOfWork UnitOfWork { get; init; }
-    public required ILogger Logger { get; init; }
-    public required RoleAssignmentConfiguration Configuration { get; init; }
-}
-
-public RoleAssignmentService_GoodWay(RoleAssignmentServiceOptions options)
-{
-    // Single parameter validation and assignment
-}
-```
-
-## 3. Remove Redundant Cancellation Token Handling
-
-The `CancellationTokenSource.CreateLinkedTokenSource` pattern is unnecessary here since you're just adding a timeout. Use the simpler approach:
-
-```csharp
-using var timeoutCts = new CancellationTokenSource(configuration.TransactionTimeout);
-using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-var token = linkedCts.Token;
-```
-
-## 4. Improve Error Handling Granularity
-
-Currently, if one role assignment fails, everything rolls back. Consider partial success scenarios:
-
-```csharp
-public sealed record RoleAssignmentResult
-{
-    public IReadOnlyList<RoleAssignmentSuccess> Successes { get; init; } = [];
-    public IReadOnlyList<RoleAssignmentFailure> Failures { get; init; } = [];
-    public bool IsFullySuccessful => Failures.Count == 0;
-    public bool IsPartiallySuccessful => Successes.Count > 0 && Failures.Count > 0;
-}
-```
-
-## 5. Reduce Cognitive Complexity
-
-The main method is quite long. Extract smaller, focused methods:
-
-```csharp
-public async Task<RoleAssignmentResult> AssignStandardRolesAsync(...)
-{
-    ValidateInputs(userId, departmentId);
-    
-    using var operation = await StartTransactionAsync(cancellationToken);
-    
-    var assignments = await roleAssignmentFactory.CreateStandardAssignmentsAsync(departmentId, operation.Token);
-    var results = await ProcessRoleAssignmentsAsync(userId, departmentId, assignedDate, assignments, operation.Token);
-    
-    await operation.CommitAsync();
-    return results;
-}
-```
-
-## 6. Optimize Repository Calls
-
-Consider batching repository operations instead of individual calls:
-
-```csharp
-public interface IUserRoleRepository
-{
-    Task<int> CreateUserRolesAsync(IEnumerable<CreateUserRoleCommand> commands, CancellationToken cancellationToken = default);
-    Task<IReadOnlySet<StandardRoleType>> GetExistingRoleTypesAsync(UserId userId, CancellationToken cancellationToken = default);
-}
-```
-
-## 7. Improve Type Safety
-
-The `DepartmentId` equality comparison could be more robust:
-
-```csharp
-public sealed record DepartmentId(string Value) : IEquatable<DepartmentId>
-{
-    public static implicit operator string(DepartmentId departmentId) => departmentId.Value;
-    
-    public bool Equals(DepartmentId? other) =>
-        other is not null && string.Equals(Value, other.Value, StringComparison.OrdinalIgnoreCase);
-    
-    public override int GetHashCode() => 
-        StringComparer.OrdinalIgnoreCase.GetHashCode(Value);
-}
-```
-
-## 8. Consider Using Result<T> Pattern
-
-Instead of throwing exceptions for business logic failures, consider a more functional approach:
-
-```csharp
-public sealed record Result<T>
-{
-    private Result(T? value, string? error)
-    {
-        Value = value;
-        Error = error;
-        IsSuccess = error is null;
-    }
-    
-    public T? Value { get; }
-    public string? Error { get; }
-    public bool IsSuccess { get; }
-    
-    public static Result<T> Success(T value) => new(value, null);
-    public static Result<T> Failure(string error) => new(default, error);
-}
-```
-
-## 9. Improve Configuration Validation
-
-Add validation to ensure configuration is sensible:
-
-```csharp
-public sealed class RoleAssignmentConfiguration
-{
-    private TimeSpan _transactionTimeout = TimeSpan.FromMinutes(5);
-    
-    public TimeSpan TransactionTimeout
-    {
-        get => _transactionTimeout;
-        init => _transactionTimeout = value > TimeSpan.Zero ? value : 
-            throw new ArgumentOutOfRangeException(nameof(value), "Timeout must be positive");
-    }
-}
-```
-
-## 10. Add Defensive Programming
-
-Consider what happens if the factory returns an empty collection:
-
-```csharp
-var roleAssignments = await roleAssignmentFactory.CreateStandardAssignmentsAsync(departmentId, cts.Token);
-
-if (!roleAssignments.Any())
-{
-    logger.LogWarning("No standard role assignments defined for department {DepartmentId}", departmentId.Value);
-    return RoleAssignmentResult.Success(); // or consider this a failure
-}
-```
-
-The refactored version demonstrates solid principles but could benefit from these refinements to make it more maintainable, performant, and robust in production scenarios.
