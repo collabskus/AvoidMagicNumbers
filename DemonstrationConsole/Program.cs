@@ -29,7 +29,7 @@ class Program
         Console.WriteLine("- Each role assignment is explicit and testable");
         Console.WriteLine();
 
-        var goodService = new ModernApproach.RoleAssignmentService_GoodWay();
+        var goodService = ModernApproach.DemoRoleAssignmentService.Create();
         goodService.AssignStandardRoles(new UserId("user123"), new DepartmentId("IT-DEPT"), DateTime.Now);
 
         Console.WriteLine();
