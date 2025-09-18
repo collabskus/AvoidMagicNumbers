@@ -246,11 +246,11 @@ namespace ModernApproach
     
     public class RoleAssignmentService_GoodWay
     {
-        private readonly IUserRoleRepository userRoleRepository;
-        private readonly IWorkAssignmentRepository workAssignmentRepository;
-        private readonly ISupervisorService supervisorService;
-        private readonly IRoleAssignmentFactory roleAssignmentFactory;
-        private readonly IUnitOfWork unitOfWork;
+        private readonly IUserRoleRepository? userRoleRepository;
+        private readonly IWorkAssignmentRepository? workAssignmentRepository;
+        private readonly ISupervisorService? supervisorService;
+        private readonly IRoleAssignmentFactory? roleAssignmentFactory;
+        private readonly IUnitOfWork? unitOfWork;
         private readonly ILogger logger;
         private readonly RoleAssignmentConfiguration configuration;
 
@@ -282,6 +282,13 @@ namespace ModernApproach
             logger = new ConsoleLogger();
             configuration = new RoleAssignmentConfiguration();
             
+            // Initialize demo implementations for backward compatibility
+            userRoleRepository = new DemoUserRoleRepository();
+            workAssignmentRepository = new DemoWorkAssignmentRepository();
+            supervisorService = new DemoSupervisorService();
+            roleAssignmentFactory = new RoleAssignmentFactory(supervisorService, configuration);
+            unitOfWork = new DemoUnitOfWork();
+            
             logger.LogWarning("Using deprecated parameterless constructor. Please update to use dependency injection.");
         }
 
@@ -292,7 +299,7 @@ namespace ModernApproach
             DateTime assignedDate)
         {
             logger.LogInformation(
-                "Starting role assignment for user {UserId} in department {DepartmentId}",
+                "Starting role assignment for user {0} in department {1}",
                 userId.Value,
                 departmentId.Value);
 
@@ -300,10 +307,10 @@ namespace ModernApproach
 
             try
             {
-                await unitOfWork.BeginTransactionAsync();
+                await unitOfWork!.BeginTransactionAsync();
                 
                 // Get the roles this user should have
-                var roleAssignments = await roleAssignmentFactory.CreateStandardAssignmentsAsync(departmentId);
+                var roleAssignments = await roleAssignmentFactory!.CreateStandardAssignmentsAsync(departmentId);
                 
                 // Process each role with validation
                 foreach (var assignment in roleAssignments)
@@ -312,7 +319,7 @@ namespace ModernApproach
                     if (!validation.IsValid)
                     {
                         logger.LogWarning(
-                            "Validation failed for role {RoleType}: {Errors}",
+                            "Validation failed for role {0}: {1}",
                             assignment.RoleType,
                             string.Join(", ", validation.Errors));
                         
@@ -334,7 +341,7 @@ namespace ModernApproach
                 await unitOfWork.CommitAsync();
                 
                 logger.LogInformation(
-                    "Successfully assigned {Count} roles to user {UserId}",
+                    "Successfully assigned {0} roles to user {1}",
                     assignedRoleIds.Count,
                     userId.Value);
                 
@@ -343,11 +350,11 @@ namespace ModernApproach
             catch (Exception ex)
             {
                 logger.LogError(ex, 
-                    "Failed to assign roles for user {UserId} in department {DepartmentId}",
+                    "Failed to assign roles for user {0} in department {1}",
                     userId.Value,
                     departmentId.Value);
                 
-                await unitOfWork.RollbackAsync();
+                await unitOfWork!.RollbackAsync();
                 return RoleAssignmentResult.Failure($"Role assignment failed: {ex.Message}");
             }
         }
@@ -372,14 +379,14 @@ namespace ModernApproach
             // Check if user already has this role
             if (configuration.ValidateExistingRoles)
             {
-                if (await userRoleRepository.UserRoleExistsAsync(userId, assignment.RoleType))
+                if (await userRoleRepository!.UserRoleExistsAsync(userId, assignment.RoleType))
                 {
                     errors.Add($"User already has role {assignment.RoleType.GetDisplayName()}");
                 }
             }
             
             // Validate supervisor exists
-            if (!await supervisorService.SupervisorExistsAsync(assignment.SupervisorId))
+            if (!await supervisorService!.SupervisorExistsAsync(assignment.SupervisorId))
             {
                 errors.Add($"Supervisor {assignment.SupervisorId.Value} not found");
             }
@@ -410,14 +417,14 @@ namespace ModernApproach
             );
 
             logger.LogInformation(
-                "Assigning {RoleType} role to user {UserId}",
+                "Assigning {0} role to user {1}",
                 assignment.RoleType.GetDisplayName(),
                 userId.Value);
             
             if (configuration.IsVerboseLoggingEnabled)
             {
                 logger.LogDebug(
-                    "Role assignment details - RoleId: {RoleId}, SupervisorId: {SupervisorId}, Description: {Description}",
+                    "Role assignment details - RoleId: {0}, SupervisorId: {1}, Description: {2}",
                     roleId.Value,
                     assignment.SupervisorId.Value,
                     assignment.Description);
@@ -426,7 +433,7 @@ namespace ModernApproach
             try
             {
                 // Execute database command through repository
-                await userRoleRepository.CreateUserRoleAsync(command);
+                await userRoleRepository!.CreateUserRoleAsync(command);
                 
                 // Create work assignment
                 var workCommand = new WorkAssignmentCommand(
@@ -437,10 +444,10 @@ namespace ModernApproach
                     assignedDate
                 );
                 
-                await workAssignmentRepository.CreateWorkAssignmentAsync(workCommand);
+                await workAssignmentRepository!.CreateWorkAssignmentAsync(workCommand);
                 
                 logger.LogDebug(
-                    "Successfully created role assignment {RoleId} for user {UserId}",
+                    "Successfully created role assignment {0} for user {1}",
                     roleId.Value,
                     userId.Value);
                 
@@ -449,7 +456,7 @@ namespace ModernApproach
             catch (Exception ex)
             {
                 logger.LogError(ex, 
-                    "Failed to process role assignment {RoleType} for user {UserId}",
+                    "Failed to process role assignment {0} for user {1}",
                     assignment.RoleType,
                     userId.Value);
                 throw;
@@ -466,22 +473,51 @@ namespace ModernApproach
     {
         public void LogInformation(string message, params object[] args)
         {
-            Console.WriteLine($"[INFO] {string.Format(message, args)}");
+            try
+            {
+                Console.WriteLine($"[INFO] {string.Format(message, args)}");
+            }
+            catch (FormatException)
+            {
+                // Fallback for format issues - just log the message as-is
+                Console.WriteLine($"[INFO] {message}");
+            }
         }
 
         public void LogDebug(string message, params object[] args)
         {
-            Console.WriteLine($"[DEBUG] {string.Format(message, args)}");
+            try
+            {
+                Console.WriteLine($"[DEBUG] {string.Format(message, args)}");
+            }
+            catch (FormatException)
+            {
+                Console.WriteLine($"[DEBUG] {message}");
+            }
         }
 
         public void LogError(Exception ex, string message, params object[] args)
         {
-            Console.WriteLine($"[ERROR] {string.Format(message, args)} - Exception: {ex.Message}");
+            try
+            {
+                Console.WriteLine($"[ERROR] {string.Format(message, args)} - Exception: {ex.Message}");
+            }
+            catch (FormatException)
+            {
+                Console.WriteLine($"[ERROR] {message} - Exception: {ex.Message}");
+            }
         }
 
         public void LogWarning(string message, params object[] args)
         {
-            Console.WriteLine($"[WARN] {string.Format(message, args)}");
+            try
+            {
+                Console.WriteLine($"[WARN] {string.Format(message, args)}");
+            }
+            catch (FormatException)
+            {
+                Console.WriteLine($"[WARN] {message}");
+            }
         }
     }
 
