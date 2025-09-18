@@ -2,6 +2,8 @@
 // DEMONSTRATION
 // ============================================
 
+using ModernApproach;
+
 class Program
 {
     static void Main(string[] args)
@@ -17,20 +19,20 @@ class Program
         badService.AssignStandardRoles("user123", "IT-DEPT", DateTime.Now);
 
         Console.WriteLine();
-        Console.WriteLine("=== MODERN APPROACH: Explicit Business Logic ===");
+        Console.WriteLine("=== MODERN APPROACH: Type-Safe, Explicit Business Logic ===");
         Console.WriteLine("Benefits of this refactored approach:");
-        Console.WriteLine("- Removes magic number loop entirely");
-        Console.WriteLine("- Each role assignment is explicit and documented");
-        Console.WriteLine("- Business rules are clear and testable");
-        Console.WriteLine("- Easy to add new roles without modifying loops");
-        Console.WriteLine("- Separates data structure from processing logic");
+        Console.WriteLine("- Eliminates magic number loop entirely");
+        Console.WriteLine("- Strong types prevent parameter mix-ups at compile time");
+        Console.WriteLine("- Command objects replace loose parameter dictionaries");
+        Console.WriteLine("- Immutable records with clear business meaning");
+        Console.WriteLine("- Type-safe comparisons instead of string manipulation");
+        Console.WriteLine("- Each role assignment is explicit and testable");
         Console.WriteLine();
 
         var goodService = new ModernApproach.RoleAssignmentService_GoodWay();
-        goodService.AssignStandardRoles("user123", "IT-DEPT", DateTime.Now);
+        goodService.AssignStandardRoles(new UserId("user123"), new DepartmentId("IT-DEPT"), DateTime.Now);
 
         Console.WriteLine();
-        Console.WriteLine("=== KEY LESSONS FOR REFACTORING ===");
         Console.WriteLine("1. ELIMINATE MAGIC NUMBER LOOPS");
         Console.WriteLine("   Replace: for (int i = 6; i <= 7; i++)");
         Console.WriteLine("   With: foreach (var role in GetRequiredRoles())");
@@ -39,13 +41,17 @@ class Program
         Console.WriteLine("   Replace: if (i == 6) // FOAOwner");
         Console.WriteLine("   With: if (role.Type == SolicitationRoleType.FOAOwner)");
         Console.WriteLine();
-        Console.WriteLine("3. EXTRACT BUSINESS LOGIC");
-        Console.WriteLine("   Replace: Complex conditionals inside loops");
-        Console.WriteLine("   With: Separate methods that handle specific business rules");
+        Console.WriteLine("3. CREATE STRONGLY-TYPED DOMAIN OBJECTS");
+        Console.WriteLine("   Replace: string userId, string departmentId");
+        Console.WriteLine("   With: UserId userId, DepartmentId departmentId");
         Console.WriteLine();
-        Console.WriteLine("4. MAKE DATA STRUCTURES EXPLICIT");
-        Console.WriteLine("   Replace: Magic numbers representing concepts");
-        Console.WriteLine("   With: Strongly-typed objects that model the domain");
+        Console.WriteLine("4. USE COMMAND OBJECTS INSTEAD OF DICTIONARIES");
+        Console.WriteLine("   Replace: parameters.Add(\"UserId\", userId)");
+        Console.WriteLine("   With: new CreateUserRoleCommand(userId, departmentId, ...)");
+        Console.WriteLine();
+        Console.WriteLine("5. LEVERAGE COMPILE-TIME TYPE SAFETY");
+        Console.WriteLine("   Replace: String comparisons and casting");
+        Console.WriteLine("   With: Record equality and strong typing");
         Console.WriteLine();
         Console.WriteLine("This pattern applies to your dependency injection work:");
         Console.WriteLine("- Replace ServiceFactory static calls with injected dependencies");

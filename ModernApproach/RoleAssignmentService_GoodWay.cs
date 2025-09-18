@@ -4,6 +4,19 @@
 
 namespace ModernApproach
 {
+    // Strong types instead of primitive strings/ints
+    public record UserId(string Value);
+    public record DepartmentId(string Value);
+    public record SupervisorId(string Value);
+    public record RoleId(Guid Value)
+    {
+        public static RoleId New() => new(Guid.NewGuid());
+    }
+    public record AssignmentId(Guid Value)
+    {
+        public static AssignmentId New() => new(Guid.NewGuid());
+    }
+
     // Clear enums that document business meaning
     public enum StandardRoleType
     {
@@ -23,21 +36,30 @@ namespace ModernApproach
         UserAccount = 25
     }
 
-    // Data structure that clearly represents what we're creating
-    public class RoleAssignment
-    {
-        public StandardRoleType RoleType { get; set; }
-        public required string SupervisorId { get; set; }
-        public WorkAssignmentRoleCode WorkRole { get; set; }
-        public required string Description { get; set; }
-    }
+    // Immutable data structure with strong types
+    public record RoleAssignment(
+        StandardRoleType RoleType,
+        SupervisorId SupervisorId,
+        WorkAssignmentRoleCode WorkRole,
+        string Description
+    );
+
+    // Command object for database operations
+    public record CreateUserRoleCommand(
+        RoleId RoleId,
+        AssignmentId AssignmentId,
+        UserId UserId,
+        DepartmentId DepartmentId,
+        DateTime AssignedDate,
+        StandardRoleType RoleType,
+        SupervisorId SupervisorId
+    );
 
     public class RoleAssignmentService_GoodWay
     {
-        private readonly Dictionary<string, object> parameters = new Dictionary<string, object>();
-        private const string SpecialDepartmentCode = "SPECIAL-DEPT";
+        private static readonly DepartmentId SpecialDepartmentCode = new("SPECIAL-DEPT");
 
-        public void AssignStandardRoles(string userId, string departmentId, DateTime assignedDate)
+        public void AssignStandardRoles(UserId userId, DepartmentId departmentId, DateTime assignedDate)
         {
             // Clear intent: we're getting the roles this user should have
             var roleAssignments = GetStandardRoleAssignments(departmentId);
@@ -49,47 +71,44 @@ namespace ModernApproach
             }
         }
 
-        private List<RoleAssignment> GetStandardRoleAssignments(string departmentId)
+        private List<RoleAssignment> GetStandardRoleAssignments(DepartmentId departmentId)
         {
             return new List<RoleAssignment>
             {
-                new RoleAssignment
-                {
-                    RoleType = StandardRoleType.DepartmentManager,
-                    SupervisorId = GetDepartmentManager(departmentId),
-                    WorkRole = WorkAssignmentRoleCode.ProjectManager,
-                    Description = "Department Manager - oversees department operations"
-                },
-                new RoleAssignment
-                {
-                    RoleType = StandardRoleType.ProjectCoordinator,
-                    SupervisorId = GetProjectCoordinator(departmentId),
-                    WorkRole = GetCoordinatorWorkRole(departmentId),
-                    Description = "Project Coordinator - manages project workflows"
-                }
+                new RoleAssignment(
+                    StandardRoleType.DepartmentManager,
+                    GetDepartmentManager(departmentId),
+                    WorkAssignmentRoleCode.ProjectManager,
+                    "Department Manager - oversees department operations"
+                ),
+                new RoleAssignment(
+                    StandardRoleType.ProjectCoordinator,
+                    GetProjectCoordinator(departmentId),
+                    GetCoordinatorWorkRole(departmentId),
+                    "Project Coordinator - manages project workflows"
+                )
             };
         }
 
-        private void ProcessSingleRoleAssignment(string userId, string departmentId,
+        private void ProcessSingleRoleAssignment(UserId userId, DepartmentId departmentId,
             DateTime assignedDate, RoleAssignment assignment)
         {
-            string roleId = Guid.NewGuid().ToString();
-            string assignmentId = Guid.NewGuid().ToString();
+            // Create strongly-typed command object
+            var command = new CreateUserRoleCommand(
+                RoleId.New(),
+                AssignmentId.New(),
+                userId,
+                departmentId,
+                assignedDate,
+                assignment.RoleType,
+                assignment.SupervisorId
+            );
 
-            // Clear parameter building
-            parameters.Clear();
-            parameters.Add("RoleId", roleId);
-            parameters.Add("AssignmentId", assignmentId);
-            parameters.Add("UserId", userId);
-            parameters.Add("DepartmentId", departmentId);
-            parameters.Add("AssignedDate", assignedDate);
-            parameters.Add("RoleTypeCode", (int)assignment.RoleType);
-            parameters.Add("SupervisorId", assignment.SupervisorId);
-
-            Console.WriteLine($"Assigning {assignment.RoleType} role to user {userId}");
+            Console.WriteLine($"Assigning {assignment.RoleType} role to user {userId.Value}");
             Console.WriteLine($"  Description: {assignment.Description}");
 
-            ExecuteDatabaseCommand("InsertUserRole", parameters);
+            // Pass strongly-typed command instead of dictionary
+            ExecuteDatabaseCommand(command);
 
             CreateWorkAssignment(
                 assignment.SupervisorId,
@@ -99,32 +118,34 @@ namespace ModernApproach
             );
         }
 
-        private WorkAssignmentRoleCode GetCoordinatorWorkRole(string departmentId)
+        private WorkAssignmentRoleCode GetCoordinatorWorkRole(DepartmentId departmentId)
         {
-            // Business rule is now explicit and documented
-            return IsSpecialDepartment(departmentId)
+            // Business rule is now explicit and documented with type-safe comparison
+            return departmentId == SpecialDepartmentCode
                 ? WorkAssignmentRoleCode.SpecialAdministrator
                 : WorkAssignmentRoleCode.GeneralAdministrator;
         }
 
-        private bool IsSpecialDepartment(string departmentId)
+        // Type-safe method signatures prevent parameter mix-ups
+        private void ExecuteDatabaseCommand(CreateUserRoleCommand command)
         {
-            return departmentId.ToUpper() == SpecialDepartmentCode;
+            Console.WriteLine($"  Executing InsertUserRole command");
+            Console.WriteLine($"    RoleId: {command.RoleId.Value}");
+            Console.WriteLine($"    UserId: {command.UserId.Value}");
+            Console.WriteLine($"    RoleType: {command.RoleType}");
         }
 
-        private void ExecuteDatabaseCommand(string command, Dictionary<string, object> parameters)
+        private void CreateWorkAssignment(SupervisorId supervisorId, WorkAssignmentRoleCode roleCode,
+            UserId userId, ResourceType resourceType)
         {
-            Console.WriteLine($"  Executing {command} with {parameters.Count} parameters");
-        }
-
-        private void CreateWorkAssignment(string supervisorId, WorkAssignmentRoleCode roleCode,
-            string userId, ResourceType resourceType)
-        {
-            Console.WriteLine($"  Creating work assignment: Supervisor={supervisorId}, " +
+            Console.WriteLine($"  Creating work assignment: Supervisor={supervisorId.Value}, " +
                             $"Role={roleCode}, ResourceType={resourceType}");
         }
 
-        private string GetDepartmentManager(string departmentId) => "manager-" + departmentId;
-        private string GetProjectCoordinator(string departmentId) => "coordinator-" + departmentId;
+        private SupervisorId GetDepartmentManager(DepartmentId departmentId)
+            => new SupervisorId("manager-" + departmentId.Value);
+
+        private SupervisorId GetProjectCoordinator(DepartmentId departmentId)
+            => new SupervisorId("coordinator-" + departmentId.Value);
     }
 }

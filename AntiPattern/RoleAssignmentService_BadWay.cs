@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-// ============================================
+﻿// ============================================
 // ANTI-PATTERN: Using Magic Numbers in Loops
 // ============================================
 
