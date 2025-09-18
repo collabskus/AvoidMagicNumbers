@@ -45,7 +45,8 @@ $ExcludeFiles = @(
     "*.dll",
     "*.pdb",
     "*.cache",
-    "*.log"
+    "*.log",
+    "dump.txt"
 )
 
 Write-Host "Starting project export..." -ForegroundColor Green
@@ -122,12 +123,30 @@ $AllFiles = @()
 foreach ($extension in $IncludeExtensions) {
     $files = Get-ChildItem -Path $ProjectPath -Recurse -Include $extension -File | Where-Object {
         $exclude = $false
+        
+        # Check excluded directories
         foreach ($excludeDir in $ExcludeDirectories) {
             if ($_.FullName -like "*\$excludeDir\*") {
                 $exclude = $true
                 break
             }
         }
+        
+        # Check excluded files (this was missing!)
+        if (-not $exclude) {
+            foreach ($excludeFile in $ExcludeFiles) {
+                if ($_.Name -like $excludeFile) {
+                    $exclude = $true
+                    break
+                }
+            }
+        }
+        
+        # Also exclude the output file specifically
+        if (-not $exclude -and $_.FullName -eq $OutputPath) {
+            $exclude = $true
+        }
+        
         -not $exclude
     }
     $AllFiles += $files
