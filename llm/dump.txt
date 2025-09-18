@@ -1,7 +1,7 @@
 ﻿
 ===============================================================================
 ASP.NET PROJECT EXPORT
-Generated: 09/18/2025 11:47:15
+Generated: 09/18/2025 12:11:16
 Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
 ===============================================================================
 
@@ -17,6 +17,10 @@ C:\USERS\KUSHAL\SOURCE\REPOS\AVOIDMAGICNUMBERS
 |   Export-Project.ps1
 |   README.md
 |   
++---.github
+|   \---workflows
+|           build-and-test.yml
+|           
 +---AntiPattern
 |       AntiPattern.csproj
 |       RoleAssignmentService_BadWay.cs
@@ -36,6 +40,85 @@ C:\USERS\KUSHAL\SOURCE\REPOS\AVOIDMAGICNUMBERS
 
 FILE CONTENTS:
 ==============
+
+================================================================================
+FILE: .github\workflows\build-and-test.yml
+SIZE: 1.8 KB
+MODIFIED: 09/18/2025 11:50:48
+================================================================================
+
+name: Build and Test
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        include-prerelease: true
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    - name: Run demonstration
+      run: |
+        echo "Running magic numbers demonstration..."
+        dotnet run --project DemonstrationConsole --configuration Release --no-build
+        echo "Demo completed successfully!"
+    
+    - name: Verify build artifacts
+      run: |
+        echo "Checking build outputs..."
+        ls -la */bin/Release/net10.0/
+        echo "All artifacts present!"
+
+  build-matrix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        dotnet-version: ['10.0.x']
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET ${{ matrix.dotnet-version }}
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+        include-prerelease: true
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    - name: Run demo on ${{ matrix.os }}
+      run: dotnet run --project DemonstrationConsole --configuration Release --no-build
+    
+    - name: Test clean build
+      run: |
+        dotnet clean
+        dotnet build --configuration Release
+        echo "Clean build successful on ${{ matrix.os }}"
+
+
 
 ================================================================================
 FILE: AntiPattern\AntiPattern.csproj
@@ -1139,7 +1222,7 @@ Use at your own discretion.
 
 
 ===============================================================================
-EXPORT COMPLETED: 09/18/2025 11:47:15
-Total Files Exported: 8
+EXPORT COMPLETED: 09/18/2025 12:11:16
+Total Files Exported: 9
 Output File: C:\Users\kushal\source\repos\AvoidMagicNumbers\llm\dump.txt
 ===============================================================================
