@@ -1,7 +1,7 @@
 ﻿
 ===============================================================================
 ASP.NET PROJECT EXPORT
-Generated: 09/18/2025 11:41:45
+Generated: 09/18/2025 11:46:42
 Project Path: C:\Users\kushal\source\repos\AvoidMagicNumbers
 ===============================================================================
 
@@ -264,18 +264,13 @@ MODIFIED: 09/18/2025 10:32:42
 
 ================================================================================
 FILE: ModernApproach\RoleAssignmentService_GoodWay.cs
-SIZE: 21.53 KB
-MODIFIED: 09/18/2025 11:41:03
+SIZE: 22 KB
+MODIFIED: 09/18/2025 11:45:30
 ================================================================================
 
 // ============================================
 // MODERN APPROACH: Explicit, Readable Role Assignment with DI
 // ============================================
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace ModernApproach
 {
@@ -1144,7 +1139,7 @@ Use at your own discretion.
 
 
 ===============================================================================
-EXPORT COMPLETED: 09/18/2025 11:41:45
+EXPORT COMPLETED: 09/18/2025 11:46:42
 Total Files Exported: 8
 Output File: C:\Users\kushal\source\repos\AvoidMagicNumbers\llm\dump.txt
 ===============================================================================
