@@ -2,11 +2,6 @@
 // MODERN APPROACH: Explicit, Readable Role Assignment with DI
 // ============================================
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 namespace ModernApproach
 {
     // ============================================
