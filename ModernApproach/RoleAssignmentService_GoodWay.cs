@@ -622,7 +622,7 @@ namespace ModernApproach
         public Task RollbackAsync(CancellationToken cancellationToken = default)
         {
             Console.WriteLine("  [UOW] Rolling back transaction");
-            return Task.CompletedToken;
+            return Task.CompletedTask;
         }
     }
 
