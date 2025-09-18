@@ -2,8 +2,6 @@
 // MODERN APPROACH: Explicit, Readable Role Assignment with DI
 // ============================================
 
-using System.ComponentModel.DataAnnotations;
-
 namespace ModernApproach
 {
     // ============================================
@@ -16,7 +14,7 @@ namespace ModernApproach
         public override string ToString() => Value;
     }
     
-    public record DepartmentId(string Value) : IEquatable<DepartmentId>
+    public sealed record DepartmentId(string Value) : IEquatable<DepartmentId>
     {
         public static implicit operator string(DepartmentId departmentId) => departmentId.Value;
         public override string ToString() => Value;
@@ -58,28 +56,19 @@ namespace ModernApproach
     
     public enum StandardRoleType
     {
-        [Display(Name = "Department Manager", Description = "Oversees department operations")]
         DepartmentManager = 6,    // Maintaining original DB values for compatibility
-        
-        [Display(Name = "Project Coordinator", Description = "Manages project workflows")]
         ProjectCoordinator = 7
     }
 
     public enum WorkAssignmentRoleCode
     {
-        [Display(Name = "Project Manager")]
         ProjectManager = 101,
-        
-        [Display(Name = "General Administrator")]
         GeneralAdministrator = 203,
-        
-        [Display(Name = "Special Administrator")]
         SpecialAdministrator = 202
     }
 
     public enum ResourceType
     {
-        [Display(Name = "User Account")]
         UserAccount = 25
     }
 
@@ -116,15 +105,7 @@ namespace ModernApproach
         SupervisorId SupervisorId,
         WorkAssignmentRoleCode WorkRole,
         string Description
-    )
-    {
-        // Validation at construction
-        public RoleAssignment
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(SupervisorId.Value, nameof(SupervisorId));
-            ArgumentException.ThrowIfNullOrWhiteSpace(Description, nameof(Description));
-        }
-    }
+    );
 
     public record CreateUserRoleCommand(
         RoleId RoleId,
@@ -134,16 +115,7 @@ namespace ModernApproach
         DateTime AssignedDate,
         StandardRoleType RoleType,
         SupervisorId SupervisorId
-    )
-    {
-        // Validation at construction
-        public CreateUserRoleCommand
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(UserId.Value, nameof(UserId));
-            ArgumentException.ThrowIfNullOrWhiteSpace(DepartmentId.Value, nameof(DepartmentId));
-            ArgumentException.ThrowIfNullOrWhiteSpace(SupervisorId.Value, nameof(SupervisorId));
-        }
-    }
+    );
 
     public record WorkAssignmentCommand(
         SupervisorId SupervisorId,
@@ -151,15 +123,7 @@ namespace ModernApproach
         UserId UserId,
         ResourceType ResourceType,
         DateTime CreatedDate
-    )
-    {
-        // Validation at construction
-        public WorkAssignmentCommand
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(SupervisorId.Value, nameof(SupervisorId));
-            ArgumentException.ThrowIfNullOrWhiteSpace(UserId.Value, nameof(UserId));
-        }
-    }
+    );
 
     public sealed record RoleAssignmentResult
     {
@@ -249,22 +213,12 @@ namespace ModernApproach
         
         public static string GetDisplayName(this StandardRoleType roleType)
         {
-            var field = roleType.GetType().GetField(roleType.ToString());
-            var displayAttribute = field?.GetCustomAttributes(typeof(DisplayAttribute), false)
-                .Cast<DisplayAttribute>()
-                .FirstOrDefault();
-            
-            return displayAttribute?.Name ?? roleType.ToString();
-        }
-        
-        public static string GetDescription(this StandardRoleType roleType)
-        {
-            var field = roleType.GetType().GetField(roleType.ToString());
-            var displayAttribute = field?.GetCustomAttributes(typeof(DisplayAttribute), false)
-                .Cast<DisplayAttribute>()
-                .FirstOrDefault();
-            
-            return displayAttribute?.Description ?? string.Empty;
+            return roleType switch
+            {
+                StandardRoleType.DepartmentManager => "Department Manager",
+                StandardRoleType.ProjectCoordinator => "Project Coordinator",
+                _ => roleType.ToString()
+            };
         }
     }
 
@@ -297,7 +251,7 @@ namespace ModernApproach
                 StandardRoleType.DepartmentManager,
                 managerSupervisor,
                 WorkAssignmentRoleCode.ProjectManager,
-                StandardRoleType.DepartmentManager.GetDescription()
+                RoleAssignmentConstants.Descriptions.DepartmentManager
             ));
             
             // Project Coordinator Role
@@ -307,7 +261,7 @@ namespace ModernApproach
                 StandardRoleType.ProjectCoordinator,
                 coordinatorSupervisor,
                 coordinatorWorkRole,
-                StandardRoleType.ProjectCoordinator.GetDescription()
+                RoleAssignmentConstants.Descriptions.ProjectCoordinator
             ));
             
             return assignments.AsReadOnly();
@@ -355,7 +309,7 @@ namespace ModernApproach
             this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
-        // Main public method - now async with result pattern and cancellation support
+        // Main public method - async with result pattern and cancellation support
         public async Task<RoleAssignmentResult> AssignStandardRolesAsync(
             UserId userId, 
             DepartmentId departmentId, 
@@ -365,8 +319,12 @@ namespace ModernApproach
             // Input validation
             ArgumentNullException.ThrowIfNull(userId);
             ArgumentNullException.ThrowIfNull(departmentId);
-            ArgumentException.ThrowIfNullOrWhiteSpace(userId.Value, nameof(userId));
-            ArgumentException.ThrowIfNullOrWhiteSpace(departmentId.Value, nameof(departmentId));
+            
+            if (string.IsNullOrWhiteSpace(userId.Value))
+                throw new ArgumentException("User ID cannot be null or empty", nameof(userId));
+            
+            if (string.IsNullOrWhiteSpace(departmentId.Value))
+                throw new ArgumentException("Department ID cannot be null or empty", nameof(departmentId));
 
             logger.LogInformation(
                 "Starting role assignment for user {0} in department {1}",
@@ -435,6 +393,16 @@ namespace ModernApproach
                 
                 await unitOfWork.RollbackAsync(CancellationToken.None);
                 return RoleAssignmentResult.Failure($"Role assignment failed: {ex.Message}");
+            }
+        }
+
+        // Synchronous overload for backward compatibility
+        public void AssignStandardRoles(UserId userId, DepartmentId departmentId, DateTime assignedDate)
+        {
+            var result = AssignStandardRolesAsync(userId, departmentId, assignedDate).GetAwaiter().GetResult();
+            if (!result.IsSuccess)
+            {
+                throw new InvalidOperationException($"Role assignment failed: {string.Join(", ", result.Errors)}");
             }
         }
 
@@ -654,7 +622,7 @@ namespace ModernApproach
         public Task RollbackAsync(CancellationToken cancellationToken = default)
         {
             Console.WriteLine("  [UOW] Rolling back transaction");
-            return Task.CompletedTask;
+            return Task.CompletedToken;
         }
     }
 
